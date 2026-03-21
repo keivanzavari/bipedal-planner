@@ -16,7 +16,7 @@ matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 
 from stage1.world import WORLDS
-from stage1.planner import astar, smooth_path
+from stage1.planners import PLANNERS, get_planner
 from stage1.footstep import plan_footsteps
 from stage2.lipm import LIPMParams
 from stage2.contact_schedule import build_contact_schedule
@@ -44,24 +44,24 @@ R_JERK      = 1e-6    # jerk smoothness weight
 N_PREVIEW   = 200     # preview horizon (steps = 1 s at dt=0.005)
 
 
-def run(world, start, goal):
+def run(world, start, goal, planner_name: str = "astar"):
+    planner = get_planner(planner_name, inflation_margin=INFLATION_MARGIN)
 
     # ------------------------------------------------------------------
     # Stage 1
     # ------------------------------------------------------------------
-    print("[Stage 1] Running A*...")
-    raw_path = astar(world, start, goal, inflation_margin=INFLATION_MARGIN)
-    if raw_path is None:
+    print(f"[Stage 1] Running {planner_name}...")
+    path = planner.plan(world, start, goal)
+    if path is None:
         print("  No path found.")
         return
-    smooth = smooth_path(raw_path, world, inflation_margin=INFLATION_MARGIN)
     footsteps = plan_footsteps(
-        smooth, world,
+        path, world,
         step_length=STEP_LENGTH, step_width=STEP_WIDTH,
         foot_length=FOOT_LENGTH, foot_width=FOOT_WIDTH,
         foot_clearance=FOOT_CLEARANCE,
     )
-    print(f"  Smoothed waypoints: {len(smooth)}  |  Footsteps: {len(footsteps)}")
+    print(f"  Waypoints: {len(path)}  |  Footsteps: {len(footsteps)}")
 
     # ------------------------------------------------------------------
     # Stage 2 — contact schedule
@@ -121,9 +121,11 @@ def run(world, start, goal):
 
 
 if __name__ == "__main__":
-    name = sys.argv[1] if len(sys.argv) > 1 else "demo"
-    if name not in WORLDS:
-        print(f"Unknown world '{name}'. Available: {list(WORLDS)}")
-        sys.exit(1)
-    world, start, goal = WORLDS[name]()
-    run(world, start, goal)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("world",     nargs="?", default="demo",  choices=list(WORLDS))
+    parser.add_argument("--planner", default="astar",            choices=list(PLANNERS))
+    args = parser.parse_args()
+
+    world, start, goal = WORLDS[args.world]()
+    run(world, start, goal, planner_name=args.planner)

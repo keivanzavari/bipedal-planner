@@ -12,9 +12,13 @@ stage2_main.py                    Stage 1 + 2 entry point
 
 stage1/
   world.py              2-D occupancy grid + obstacle inflation
-  planner.py            A* on inflated grid + line-of-sight path smoothing
+  planners/
+    base.py             Planner protocol + smooth_path utility
+    astar.py            A* on inflated 8-connected grid
+    theta_star.py       Theta* — any-angle A* variant (no post-smoothing needed)
+    rrt.py              RRT — continuous-space rapidly-exploring random tree
   footstep.py           Alternating L/R foot placement along CoM waypoints
-  stability.py          Stub: support-polygon check (placeholder for Stage 2)
+  stability.py          Support-polygon check (placeholder for Stage 2 ZMP)
   visualizer.py         Stage 1 visualisation
 
 stage2/
@@ -54,23 +58,31 @@ uv sync --dev    # also installs ruff, pyright
 
 **Stage 1** — footstep planner only:
 ```bash
-uv run python stage1_main.py                   # demo world
-uv run python stage1_main.py warehouse
-uv run python stage1_main.py corridor
+uv run python stage1_main.py                              # demo world, A*
+uv run python stage1_main.py warehouse --planner theta_star
+uv run python stage1_main.py corridor  --planner rrt
 uv run python stage1_main.py assembly_line
 ```
 
 **Stage 1 + 2** — footstep planner + CoM trajectory optimiser:
 ```bash
-uv run python stage2_main.py                   # demo world
-uv run python stage2_main.py warehouse
-uv run python stage2_main.py corridor
+uv run python stage2_main.py                              # demo world, A*
+uv run python stage2_main.py warehouse --planner theta_star
+uv run python stage2_main.py corridor  --planner rrt
 uv run python stage2_main.py assembly_line
 ```
 
 `stage2_main.py` opens two windows: a 2-D spatial overlay (CoM + ZMP paths
 over the footstep map) and a 4-panel time-series (position, velocity,
 acceleration, with double-support phases shaded).
+
+### Planners
+
+| Name          | Type       | Notes |
+|---------------|------------|-------|
+| `astar`       | Grid-based | 8-connected A* with post-smoothing (default) |
+| `theta_star`  | Grid-based | Any-angle A* — naturally smooth, no post-processing |
+| `rrt`         | Sampling   | Continuous-space RRT with goal bias and post-smoothing |
 
 ### Tests
 
