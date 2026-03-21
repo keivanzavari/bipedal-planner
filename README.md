@@ -76,15 +76,15 @@ acceleration, with double-support phases shaded).
 
 All tunable constants sit at the top of `stage1_main.py` and `stage2_main.py`:
 
-| Parameter | Default | Meaning |
-|-----------|---------|---------|
-| `INFLATION_MARGIN` | 0.25 m | CoM clearance from obstacles |
-| `FOOT_CLEARANCE` | 0.05 m | Extra margin for foot placement |
-| `STEP_LENGTH` | 0.25 m | Forward stride length |
-| `STEP_WIDTH` | 0.10 m | Lateral foot offset from CoM |
-| `T_SINGLE` | 0.4 s | Single support duration |
-| `T_DOUBLE` | 0.1 s | Double support duration |
-| `N_PREVIEW` | 200 steps (1 s) | ZMP preview horizon |
+| Parameter          | Default | Meaning |
+|--------------------|---------|---------|
+| `INFLATION_MARGIN` | 0.25 m  | CoM clearance from obstacles |
+| `FOOT_CLEARANCE`   | 0.05 m  | Extra margin for foot placement |
+| `STEP_LENGTH`      | 0.25 m  | Forward stride length |
+| `STEP_WIDTH`       | 0.10 m  | Lateral foot offset from CoM |
+| `T_SINGLE`         | 0.4 s   |  Single support duration |
+| `T_DOUBLE`         | 0.1 s   | Double support duration |
+| `N_PREVIEW`        | 200 steps (1 s) | ZMP preview horizon |
 
 ## Lint & type check
 
