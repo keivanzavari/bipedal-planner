@@ -1,0 +1,28 @@
+[project]
+name = "bipedal-planner"
+version = "0.1.0"
+description = "Bipedal robot path and footstep planning demo"
+readme = "PLAN.md"
+requires-python = ">=3.10"
+dependencies = [
+    "matplotlib>=3.8",
+    "numpy>=1.26",
+    "scipy>=1.12",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.11.0",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
