@@ -72,6 +72,12 @@ uv run python stage2_main.py assembly_line
 over the footstep map) and a 4-panel time-series (position, velocity,
 acceleration, with double-support phases shaded).
 
+### Tests
+
+```bash
+uv run pytest tests
+```
+
 ## Key parameters
 
 All tunable constants sit at the top of `stage1_main.py` and `stage2_main.py`:
