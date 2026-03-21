@@ -1,7 +1,7 @@
 import matplotlib
 import numpy as np
 
-from world import World
+from stage1.world import World
 
 matplotlib.use("TkAgg")  # Or 'QtAgg' if you installed PyQt
 import matplotlib.patches as patches
@@ -213,18 +213,3 @@ def plot_stability(
     existing_handles, existing_labels = ax.get_legend_handles_labels()
     ax.legend(handles=existing_handles + handles, loc="upper left")
 
-
-# ------------------------------------------------------------------
-# Quick demo
-# ------------------------------------------------------------------
-
-if __name__ == "__main__":
-    from world import make_demo_world
-
-    world, start, goal = make_demo_world()
-    inflated = world.inflated_grid(margin=0.2)
-
-    ax = plot_world(world, start=start, goal=goal, inflated_grid=inflated, show=False)
-    ax.set_title("Phase 1 — World + inflation margin (red)")
-    plt.tight_layout()
-    plt.show()

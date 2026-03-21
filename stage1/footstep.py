@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from world import World
+from stage1.world import World
 
 
 @dataclass

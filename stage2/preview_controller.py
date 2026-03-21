@@ -14,7 +14,7 @@ import numpy as np
 from dataclasses import dataclass
 from scipy.linalg import solve_discrete_are
 
-from lipm import LIPMParams, lipm_matrices
+from stage2.lipm import LIPMParams, lipm_matrices
 
 
 @dataclass
@@ -181,8 +181,8 @@ def validate_zmp(
     Check that the ZMP stays inside the support polygon at every timestep.
     Returns a summary dict.
     """
-    from contact_schedule import support_polygon_at
-    from stability import _point_in_polygon
+    from stage2.contact_schedule import support_polygon_at
+    from stage1.stability import _point_in_polygon
 
     T        = len(traj.t)
     n_fail   = 0

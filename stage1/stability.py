@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.spatial import ConvexHull
 
-from footstep import Footstep, _foot_corners
+from stage1.footstep import Footstep, _foot_corners
 
 
 @dataclass

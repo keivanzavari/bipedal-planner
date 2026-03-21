@@ -2,7 +2,7 @@ import heapq
 
 import numpy as np
 
-from world import World
+from stage1.world import World
 
 # 8-connected neighbours: (d_row, d_col, cost)
 _NEIGHBOURS = [
@@ -153,46 +153,3 @@ def _bresenham(r0, c0, r1, c1):
             err += dr
             c += sc
 
-
-# ------------------------------------------------------------------
-# Quick demo
-# ------------------------------------------------------------------
-
-if __name__ == "__main__":
-    import matplotlib
-
-    matplotlib.use("TkAgg")
-    import matplotlib.pyplot as plt
-
-    from visualizer import plot_footsteps, plot_path, plot_world
-    from world import make_demo_world
-
-    world, start, goal = make_demo_world()
-    inflated = world.inflated_grid(margin=0.25)
-
-    print("Running A*...")
-    raw_path = astar(world, start, goal, inflation_margin=0.25)
-    if raw_path is None:
-        print("No path found.")
-    else:
-        smooth = smooth_path(raw_path, world, inflation_margin=0.25)
-        print(f"Raw waypoints: {len(raw_path)}  →  Smoothed: {len(smooth)}")
-
-        from footstep import plan_footsteps
-        from stability import check_stability, stability_summary
-        from visualizer import plot_stability
-
-        footsteps = plan_footsteps(smooth, world)
-        print(f"Footsteps: {len(footsteps)}")
-
-        phases = check_stability(footsteps)
-        print(stability_summary(phases))
-
-        ax = plot_world(world, start=start, goal=goal, inflated_grid=inflated, show=False)
-        plot_path(raw_path, ax, color="#aaaaaa", label="Raw A*", show_waypoints=True)
-        plot_path(smooth, ax, color="#3498db", label="Smoothed path", show_waypoints=True)
-        plot_footsteps(footsteps, ax)
-        plot_stability(phases, ax)
-        ax.set_title("Phase 2+3+4 — A* path + footsteps + stability")
-        plt.tight_layout()
-        plt.show()

@@ -10,11 +10,11 @@ import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 
-from footstep import plan_footsteps
-from planner import astar, smooth_path
-from stability import check_stability, stability_summary
-from visualizer import plot_footsteps, plot_path, plot_stability, plot_world
-from world import WORLDS, World
+from stage1.footstep import plan_footsteps
+from stage1.planner import astar, smooth_path
+from stage1.stability import check_stability, stability_summary
+from stage1.visualizer import plot_footsteps, plot_path, plot_stability, plot_world
+from stage1.world import WORLDS, World
 
 # ------------------------------------------------------------------
 # Configuration

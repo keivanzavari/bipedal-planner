@@ -10,8 +10,7 @@ Walk cycle per step i:
 import numpy as np
 from dataclasses import dataclass
 
-from footstep import Footstep
-from footstep import _foot_corners
+from stage1.footstep import Footstep, _foot_corners
 
 
 @dataclass

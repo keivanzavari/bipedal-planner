@@ -15,13 +15,13 @@ import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 
-from world import WORLDS
-from planner import astar, smooth_path
-from footstep import plan_footsteps
-from lipm import LIPMParams
-from contact_schedule import build_contact_schedule
-from preview_controller import compute_gains, run_preview_control, validate_zmp
-from traj_visualizer import plot_trajectory_2d, plot_time_series
+from stage1.world import WORLDS
+from stage1.planner import astar, smooth_path
+from stage1.footstep import plan_footsteps
+from stage2.lipm import LIPMParams
+from stage2.contact_schedule import build_contact_schedule
+from stage2.preview_controller import compute_gains, run_preview_control, validate_zmp
+from stage2.traj_visualizer import plot_trajectory_2d, plot_time_series
 
 # ------------------------------------------------------------------
 # Stage 1 parameters

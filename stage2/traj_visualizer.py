@@ -24,7 +24,7 @@ def plot_trajectory_2d(
     Overlay CoM trajectory (solid) and ZMP trajectory (dashed) on the
     occupancy grid + footstep map.
     """
-    from visualizer import plot_world, plot_footsteps
+    from stage1.visualizer import plot_world, plot_footsteps
 
     if ax is None:
         fig, ax = plt.subplots(figsize=(14, 9))
