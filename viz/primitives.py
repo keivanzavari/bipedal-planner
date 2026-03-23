@@ -1,7 +1,7 @@
 """Low-level Rerun logging helpers.
 
-All functions operate on world-coordinate data and log timeless by default,
-except log_scalar_timeseries and log_phase_transitions which are time-indexed.
+Static geometry (world, footsteps, trajectory overview) is logged with static=True.
+Time-indexed data (animated markers, scalars) uses rr.set_time_seconds("t", ...).
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ def log_world(entity_path: str, world) -> None:
         rr.log(
             f"{entity_path}/obstacles",
             rr.LineStrips2D(strips, colors=[[80, 80, 80, 220]] * len(strips)),
-            timeless=True,
+            static=True,
         )
 
     W, H = world.width, world.height
@@ -39,7 +39,7 @@ def log_world(entity_path: str, world) -> None:
     rr.log(
         f"{entity_path}/boundary",
         rr.LineStrips2D([boundary], colors=[[0, 0, 0, 255]]),
-        timeless=True,
+        static=True,
     )
 
 
@@ -50,7 +50,7 @@ def log_waypoints(entity_path: str, path: list) -> None:
     rr.log(
         entity_path,
         rr.LineStrips2D([points], colors=[[52, 152, 219, 255]]),
-        timeless=True,
+        static=True,
     )
 
 
@@ -86,13 +86,13 @@ def log_foot_polygons(
         rr.log(
             path_left,
             rr.LineStrips2D(left_strips, colors=[[52, 152, 219, 200]] * len(left_strips)),
-            timeless=True,
+            static=True,
         )
     if right_strips:
         rr.log(
             path_right,
             rr.LineStrips2D(right_strips, colors=[[231, 76, 60, 200]] * len(right_strips)),
-            timeless=True,
+            static=True,
         )
 
 
@@ -115,13 +115,13 @@ def log_support_polygons(path_stable: str, path_unstable: str, phases) -> None:
         rr.log(
             path_stable,
             rr.LineStrips2D(stable_strips, colors=[[46, 204, 113, 180]] * len(stable_strips)),
-            timeless=True,
+            static=True,
         )
     if unstable_strips:
         rr.log(
             path_unstable,
             rr.LineStrips2D(unstable_strips, colors=[[231, 76, 60, 180]] * len(unstable_strips)),
-            timeless=True,
+            static=True,
         )
 
 
@@ -141,44 +141,81 @@ def log_com_stability_points(path_stable: str, path_unstable: str, phases) -> No
         rr.log(
             path_stable,
             rr.Points2D(np.array(stable_pts, dtype=np.float32), colors=[[46, 204, 113, 255]], radii=0.03),
-            timeless=True,
+            static=True,
         )
     if unstable_pts:
         rr.log(
             path_unstable,
             rr.Points2D(np.array(unstable_pts, dtype=np.float32), colors=[[231, 76, 60, 255]], radii=0.03),
-            timeless=True,
+            static=True,
         )
 
 
 def log_spatial_trajectory(path_com: str, path_zmp: str, traj) -> None:
-    """Log CoM and ZMP paths as downsampled spatial overview strips (timeless)."""
+    """Log CoM and ZMP paths as downsampled static overview strips."""
     T = len(traj.t)
     s = _stride(T, 2000)
     com_pts = np.column_stack([traj.x[::s], traj.y[::s]]).astype(np.float32)
     zmp_pts = np.column_stack([traj.zmp_x[::s], traj.zmp_y[::s]]).astype(np.float32)
 
-    rr.log(path_com, rr.LineStrips2D([com_pts], colors=[[230, 126, 34, 255]]), timeless=True)
-    rr.log(path_zmp, rr.LineStrips2D([zmp_pts], colors=[[155, 89, 182, 255]]), timeless=True)
+    rr.log(path_com, rr.LineStrips2D([com_pts], colors=[[230, 126, 34, 255]]), static=True)
+    rr.log(path_zmp, rr.LineStrips2D([zmp_pts], colors=[[155, 89, 182, 255]]), static=True)
+
+
+def log_animated_trajectory(path_com: str, path_zmp: str, traj) -> None:
+    """Log CoM and ZMP as time-indexed Points2D.
+
+    Creates moving markers that animate when the Rerun timeline is scrubbed.
+    Uses the same "t" timeline as log_scalar_timeseries so spatial and
+    time-series panels stay in sync.
+    """
+    T = len(traj.t)
+    s = _stride(T, 1000)
+    for i in range(0, T, s):
+        rr.set_time_seconds("t", float(traj.t[i]))
+        rr.log(
+            path_com,
+            rr.Points2D([[float(traj.x[i]), float(traj.y[i])]], colors=[[230, 126, 34, 255]], radii=0.05),
+        )
+        rr.log(
+            path_zmp,
+            rr.Points2D([[float(traj.zmp_x[i]), float(traj.zmp_y[i])]], colors=[[155, 89, 182, 255]], radii=0.05),
+        )
 
 
 def log_scalar_timeseries(traj, schedule) -> None:
     """Log all scalar channels time-indexed via rr.set_time_seconds."""
+    # Static SeriesLine annotations give each signal a colour and legend label.
+    _styles: list[tuple[str, list[int], str]] = [
+        ("trajectory/com/position/x",     [230, 126,  34], "CoM x"),
+        ("trajectory/com/position/y",     [243, 156,  18], "CoM y"),
+        ("trajectory/zmp/x",              [155,  89, 182], "ZMP x"),
+        ("trajectory/zmp/y",              [142,  68, 173], "ZMP y"),
+        ("trajectory/zmp_ref/x",          [149, 165, 166], "ZMP ref x"),
+        ("trajectory/zmp_ref/y",          [127, 140, 141], "ZMP ref y"),
+        ("trajectory/com/velocity/x",     [ 46, 204, 113], "vel x"),
+        ("trajectory/com/velocity/y",     [ 39, 174,  96], "vel y"),
+        ("trajectory/com/acceleration/x", [ 52, 152, 219], "acc x"),
+        ("trajectory/com/acceleration/y", [ 41, 128, 185], "acc y"),
+    ]
+    for path, color, name in _styles:
+        rr.log(path, rr.SeriesLine(color=color, name=name), static=True)
+
     T = len(traj.t)
     s = _stride(T, 5000)
 
     for i in range(0, T, s):
         rr.set_time_seconds("t", float(traj.t[i]))
-        rr.log("trajectory/com/position/x", rr.Scalar(float(traj.x[i])))
-        rr.log("trajectory/com/position/y", rr.Scalar(float(traj.y[i])))
-        rr.log("trajectory/com/velocity/x", rr.Scalar(float(traj.vx[i])))
-        rr.log("trajectory/com/velocity/y", rr.Scalar(float(traj.vy[i])))
+        rr.log("trajectory/com/position/x",     rr.Scalar(float(traj.x[i])))
+        rr.log("trajectory/com/position/y",     rr.Scalar(float(traj.y[i])))
+        rr.log("trajectory/com/velocity/x",     rr.Scalar(float(traj.vx[i])))
+        rr.log("trajectory/com/velocity/y",     rr.Scalar(float(traj.vy[i])))
         rr.log("trajectory/com/acceleration/x", rr.Scalar(float(traj.ax[i])))
         rr.log("trajectory/com/acceleration/y", rr.Scalar(float(traj.ay[i])))
-        rr.log("trajectory/zmp/x", rr.Scalar(float(traj.zmp_x[i])))
-        rr.log("trajectory/zmp/y", rr.Scalar(float(traj.zmp_y[i])))
-        rr.log("trajectory/zmp_ref/x", rr.Scalar(float(schedule.zmp_x[i])))
-        rr.log("trajectory/zmp_ref/y", rr.Scalar(float(schedule.zmp_y[i])))
+        rr.log("trajectory/zmp/x",              rr.Scalar(float(traj.zmp_x[i])))
+        rr.log("trajectory/zmp/y",              rr.Scalar(float(traj.zmp_y[i])))
+        rr.log("trajectory/zmp_ref/x",          rr.Scalar(float(schedule.zmp_x[i])))
+        rr.log("trajectory/zmp_ref/y",          rr.Scalar(float(schedule.zmp_y[i])))
 
 
 def log_phase_transitions(entity_path: str, schedule) -> None:

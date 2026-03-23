@@ -6,7 +6,7 @@ generates foot placements, and computes a dynamically-balanced CoM trajectory.
 
 ## Architecture
 
-```
+```text
 stage1_main.py                    Stage 1 entry point
 stage2_main.py                    Stage 1 + 2 entry point
 
@@ -19,13 +19,20 @@ stage1/
     rrt.py              RRT — continuous-space rapidly-exploring random tree
   footstep.py           Alternating L/R foot placement along CoM waypoints
   stability.py          Support-polygon check (placeholder for Stage 2 ZMP)
-  visualizer.py         Stage 1 visualisation
+  visualizer.py         Stage 1 matplotlib visualisation
 
 stage2/
   lipm.py               Discrete-time Linear Inverted Pendulum model
   contact_schedule.py   Assigns step timing, builds piecewise ZMP reference
   preview_controller.py ZMP Preview Control (Kajita 2003) — offline LQR + online loop
-  traj_visualizer.py    2-D spatial overlay + 4-panel time-series plots
+  traj_visualizer.py    2-D spatial overlay + 4-panel time-series plots (matplotlib)
+
+viz/
+  __init__.py           Re-exports visualize_stage1, visualize_stage2
+  primitives.py         Low-level rr.log helpers (world, path, feet, stability, scalars)
+  blueprint.py          Rerun blueprint layouts for stage 1 and stage 2
+  stage1_viz.py         Stage 1 Rerun entry point
+  stage2_viz.py         Stage 2 Rerun entry point
 ```
 
 The two stages are intentionally separated: Stage 1 outputs an ordered list of
@@ -35,12 +42,12 @@ a real-time tracking controller (Stage 3 — not implemented).
 
 ## Worlds
 
-| Name            | Size      | Description |
-|-----------------|-----------|-------------|
-| `demo`          | 8 × 6 m   | Simple abstract obstacles |
-| `corridor`      | 12 × 6 m  | Factory hallway with machine rows and a central doorway |
-| `assembly_line` | 14 × 8 m  | Parallel conveyor rows with freestanding pallets |
-| `warehouse`     | 16 × 12 m | Grid of storage racks with picking aisles |
+| Name            | Size       | Description                                          |
+|-----------------|------------|------------------------------------------------------|
+| `demo`          | 8 × 6 m    | Simple abstract obstacles                            |
+| `corridor`      | 12 × 6 m   | Factory hallway with machine rows and central door   |
+| `assembly_line` | 14 × 8 m   | Parallel conveyor rows with freestanding pallets     |
+| `warehouse`     | 16 × 12 m  | Grid of storage racks with picking aisles            |
 
 ## Prerequisites
 
@@ -50,39 +57,52 @@ a real-time tracking controller (Stage 3 — not implemented).
 ## Install
 
 ```bash
-uv sync          # runtime deps (numpy, scipy, matplotlib)
+uv sync          # runtime deps (numpy, scipy, matplotlib, rerun-sdk)
 uv sync --dev    # also installs ruff, pyright
 ```
 
 ## Run
 
+Both entry points accept `--viz matplotlib` (default) or `--viz rerun`.
+
 **Stage 1** — footstep planner only:
+
 ```bash
-uv run python stage1_main.py                              # demo world, A*
+uv run python stage1_main.py                                        # demo world, A*, matplotlib
 uv run python stage1_main.py warehouse --planner theta_star
 uv run python stage1_main.py corridor  --planner rrt
-uv run python stage1_main.py assembly_line
+uv run python stage1_main.py demo      --viz rerun
 ```
 
 **Stage 1 + 2** — footstep planner + CoM trajectory optimiser:
+
 ```bash
-uv run python stage2_main.py                              # demo world, A*
+uv run python stage2_main.py                                        # demo world, A*, matplotlib
 uv run python stage2_main.py warehouse --planner theta_star
 uv run python stage2_main.py corridor  --planner rrt
-uv run python stage2_main.py assembly_line
+uv run python stage2_main.py demo      --viz rerun
 ```
 
-`stage2_main.py` opens two windows: a 2-D spatial overlay (CoM + ZMP paths
-over the footstep map) and a 4-panel time-series (position, velocity,
-acceleration, with double-support phases shaded).
+### Visualization backends
+
+| Backend      | Stage 1                   | Stage 2                             | Notes                   |
+|--------------|---------------------------|-------------------------------------|-------------------------|
+| `matplotlib` | static figure             | two figures (spatial + time-series) | default                 |
+| `rerun`      | interactive Spatial2DView | Spatial2DView + TimeSeriesViews     | spawns the Rerun viewer |
+
+The Rerun backend (`--viz rerun`) logs world geometry, footsteps, support
+polygons, CoM/ZMP spatial paths, and all scalar time-series channels.  The
+stage 2 layout is a 60/40 horizontal split: spatial overview on the left,
+position/velocity/acceleration time-series stacked on the right.  Scrubbing
+the timeline animates the CoM and ZMP markers in the spatial view.
 
 ### Planners
 
-| Name          | Type       | Notes |
-|---------------|------------|-------|
-| `astar`       | Grid-based | 8-connected A* with post-smoothing (default) |
-| `theta_star`  | Grid-based | Any-angle A* — naturally smooth, no post-processing |
-| `rrt`         | Sampling   | Continuous-space RRT with goal bias and post-smoothing |
+| Name         | Type       | Notes                                                     |
+|--------------|------------|-----------------------------------------------------------|
+| `astar`      | Grid-based | 8-connected A* with post-smoothing (default)              |
+| `theta_star` | Grid-based | Any-angle A* — naturally smooth, no post-processing       |
+| `rrt`        | Sampling   | Continuous-space RRT with goal bias and post-smoothing    |
 
 ### Tests
 
@@ -94,15 +114,15 @@ uv run pytest tests
 
 All tunable constants sit at the top of `stage1_main.py` and `stage2_main.py`:
 
-| Parameter          | Default | Meaning |
-|--------------------|---------|---------|
-| `INFLATION_MARGIN` | 0.25 m  | CoM clearance from obstacles |
-| `FOOT_CLEARANCE`   | 0.05 m  | Extra margin for foot placement |
-| `STEP_LENGTH`      | 0.25 m  | Forward stride length |
-| `STEP_WIDTH`       | 0.10 m  | Lateral foot offset from CoM |
-| `T_SINGLE`         | 0.4 s   |  Single support duration |
-| `T_DOUBLE`         | 0.1 s   | Double support duration |
-| `N_PREVIEW`        | 200 steps (1 s) | ZMP preview horizon |
+| Parameter          | Default         | Meaning                         |
+|--------------------|-----------------|-------------------------------- |
+| `INFLATION_MARGIN` | 0.25 m          | CoM clearance from obstacles    |
+| `FOOT_CLEARANCE`   | 0.05 m          | Extra margin for foot placement |
+| `STEP_LENGTH`      | 0.25 m          | Forward stride length           |
+| `STEP_WIDTH`       | 0.10 m          | Lateral foot offset from CoM    |
+| `T_SINGLE`         | 0.4 s           | Single support duration         |
+| `T_DOUBLE`         | 0.1 s           | Double support duration         |
+| `N_PREVIEW`        | 200 steps (1 s) | ZMP preview horizon             |
 
 ## Lint & type check
 

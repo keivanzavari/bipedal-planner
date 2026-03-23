@@ -17,32 +17,39 @@ def build_stage1_blueprint() -> rrb.Blueprint:
 
 
 def build_stage2_blueprint() -> rrb.Blueprint:
-    """Horizontal split: 60% spatial view, 40% two stacked time-series views."""
+    """Horizontal split: 60% spatial view, 40% two stacked time-series views.
+
+    Entity path layout:
+      world/**                   — obstacles, boundary (static)
+      planning/footsteps/**      — foot rectangles (static)
+      spatial/com/**             — CoM overview strip + animated marker
+      spatial/zmp/**             — ZMP overview strip + animated marker
+      trajectory/com/position/** — CoM x/y position scalars (time-indexed)
+      trajectory/com/velocity/** — CoM x/y velocity scalars (time-indexed)
+      trajectory/com/acceleration/** — CoM x/y acceleration (time-indexed)
+      trajectory/zmp/**          — ZMP x/y scalars (time-indexed)
+      trajectory/zmp_ref/**      — ZMP reference x/y scalars (time-indexed)
+    """
     return rrb.Blueprint(
         rrb.Horizontal(
             rrb.Spatial2DView(
                 origin="/",
-                contents=[
-                    "world/**",
-                    "planning/footsteps/**",
-                    "trajectory/com/spatial",
-                    "trajectory/zmp/spatial",
-                ],
+                contents=["world/**", "planning/**", "spatial/**"],
             ),
             rrb.Vertical(
                 rrb.TimeSeriesView(
-                    origin="/trajectory",
+                    origin="/",
                     contents=[
-                        "com/position/**",
-                        "zmp/**",
-                        "zmp_ref/**",
+                        "trajectory/com/position/**",
+                        "trajectory/zmp/**",
+                        "trajectory/zmp_ref/**",
                     ],
                 ),
                 rrb.TimeSeriesView(
-                    origin="/trajectory",
+                    origin="/",
                     contents=[
-                        "com/velocity/**",
-                        "com/acceleration/**",
+                        "trajectory/com/velocity/**",
+                        "trajectory/com/acceleration/**",
                     ],
                 ),
             ),

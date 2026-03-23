@@ -27,19 +27,19 @@ def visualize_stage1(
     planner_name: str,
 ) -> None:
     rr.init("bipedal-stage1", spawn=True)
-    rr.log("/", rr.ViewCoordinates.RIGHT_HAND_Y_UP, timeless=True)
+    rr.log("/", rr.ViewCoordinates.RIGHT_HAND_Y_UP, static=True)
     rr.send_blueprint(build_stage1_blueprint())
 
     log_world("world/occupancy", world)
     rr.log(
         "world/start",
         rr.Points2D([[start[0], start[1]]], colors=[[46, 204, 113, 255]], radii=0.08),
-        timeless=True,
+        static=True,
     )
     rr.log(
         "world/goal",
         rr.Points2D([[goal[0], goal[1]]], colors=[[231, 76, 60, 255]], radii=0.08),
-        timeless=True,
+        static=True,
     )
 
     log_waypoints("planning/global_path", path)
