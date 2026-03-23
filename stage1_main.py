@@ -2,24 +2,20 @@
 Bipedal Robot Path Planner — Stage 1 pipeline.
 
 Usage:
-    python stage1_main.py [world] [--planner astar|theta_star|rrt]
+    python stage1_main.py [world] [--planner astar|theta_star|rrt] [--viz matplotlib|rerun]
 
 Examples:
     python stage1_main.py
     python stage1_main.py warehouse --planner theta_star
     python stage1_main.py corridor  --planner rrt
+    python stage1_main.py demo      --viz rerun
 """
 
 import argparse
 
-import matplotlib
-matplotlib.use("TkAgg")
-import matplotlib.pyplot as plt
-
 from stage1.footstep import plan_footsteps
 from stage1.planners import PLANNERS, get_planner
 from stage1.stability import check_stability, stability_summary
-from stage1.visualizer import plot_footsteps, plot_path, plot_stability, plot_world
 from stage1.world import WORLDS, World
 
 # ------------------------------------------------------------------
@@ -38,7 +34,7 @@ FOOT_WIDTH       = 0.08
 # ------------------------------------------------------------------
 
 
-def run(world: World, start: tuple, goal: tuple, planner_name: str = "astar"):
+def run(world: World, start: tuple, goal: tuple, planner_name: str = "astar", viz: str = "matplotlib"):
     planner = get_planner(planner_name, inflation_margin=INFLATION_MARGIN)
 
     print(f"World:   {world.width} x {world.height} m  ({world.rows} x {world.cols} cells @ {world.resolution} m/cell)")
@@ -74,22 +70,38 @@ def run(world: World, start: tuple, goal: tuple, planner_name: str = "astar"):
 
     # Visualise
     print("\nRendering...")
-    inflated = world.inflated_grid(INFLATION_MARGIN)
-    fig, ax  = plt.subplots(figsize=(12, 9))
-    plot_world(world, start=start, goal=goal, inflated_grid=inflated, ax=ax, show=False)
-    plot_path(path, ax, color="#3498db", label=planner_name, show_waypoints=True)
-    plot_footsteps(footsteps, ax, foot_length=FOOT_LENGTH, foot_width=FOOT_WIDTH)
-    plot_stability(phases, ax)
-    ax.set_title(f"Bipedal Path Planner — {planner_name}")
-    plt.tight_layout()
-    plt.show()
+    if viz == "rerun":
+        from viz import visualize_stage1
+        visualize_stage1(
+            world, start, goal, path, footsteps, phases,
+            foot_length=FOOT_LENGTH,
+            foot_width=FOOT_WIDTH,
+            inflation_margin=INFLATION_MARGIN,
+            planner_name=planner_name,
+        )
+    else:
+        import matplotlib
+        matplotlib.use("TkAgg")
+        import matplotlib.pyplot as plt
+        from stage1.visualizer import plot_footsteps, plot_path, plot_stability, plot_world
+
+        inflated = world.inflated_grid(INFLATION_MARGIN)
+        fig, ax  = plt.subplots(figsize=(12, 9))
+        plot_world(world, start=start, goal=goal, inflated_grid=inflated, ax=ax, show=False)
+        plot_path(path, ax, color="#3498db", label=planner_name, show_waypoints=True)
+        plot_footsteps(footsteps, ax, foot_length=FOOT_LENGTH, foot_width=FOOT_WIDTH)
+        plot_stability(phases, ax)
+        ax.set_title(f"Bipedal Path Planner — {planner_name}")
+        plt.tight_layout()
+        plt.show()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("world",   nargs="?", default="demo",   choices=list(WORLDS))
     parser.add_argument("--planner", default="astar", choices=list(PLANNERS))
+    parser.add_argument("--viz",     default="matplotlib", choices=["matplotlib", "rerun"])
     args = parser.parse_args()
 
     world, start, goal = WORLDS[args.world]()
-    run(world, start, goal, planner_name=args.planner)
+    run(world, start, goal, planner_name=args.planner, viz=args.viz)

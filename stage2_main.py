@@ -2,7 +2,7 @@
 Stage 2 — Trajectory Optimisation Pipeline.
 
 Usage:
-    python stage2_main.py [world_name]
+    python stage2_main.py [world_name] [--planner astar|theta_star|rrt] [--viz matplotlib|rerun]
 
 Runs Stage 1 (footstep planning) then Stage 2 (ZMP preview control),
 and shows both the 2D spatial plot and the time-series plot.
@@ -11,17 +11,12 @@ and shows both the 2D spatial plot and the time-series plot.
 import sys
 import time
 
-import matplotlib
-matplotlib.use("TkAgg")
-import matplotlib.pyplot as plt
-
 from stage1.world import WORLDS
 from stage1.planners import PLANNERS, get_planner
 from stage1.footstep import plan_footsteps
 from stage2.lipm import LIPMParams
 from stage2.contact_schedule import build_contact_schedule
 from stage2.preview_controller import compute_gains, run_preview_control, validate_zmp
-from stage2.traj_visualizer import plot_trajectory_2d, plot_time_series
 
 # ------------------------------------------------------------------
 # Stage 1 parameters
@@ -44,7 +39,7 @@ R_JERK      = 1e-6    # jerk smoothness weight
 N_PREVIEW   = 200     # preview horizon (steps = 1 s at dt=0.005)
 
 
-def run(world, start, goal, planner_name: str = "astar"):
+def run(world, start, goal, planner_name: str = "astar", viz: str = "matplotlib"):
     planner = get_planner(planner_name, inflation_margin=INFLATION_MARGIN)
 
     # ------------------------------------------------------------------
@@ -109,15 +104,30 @@ def run(world, start, goal, planner_name: str = "astar"):
     # ------------------------------------------------------------------
     # Visualise
     # ------------------------------------------------------------------
-    fig1, ax = plt.subplots(figsize=(14, 9))
-    plot_trajectory_2d(traj, schedule, footsteps, world, ax=ax, show=False)
-    plt.tight_layout()
+    print("\nRendering...")
+    if viz == "rerun":
+        from viz import visualize_stage2
+        visualize_stage2(
+            world, footsteps, schedule, traj,
+            foot_length=FOOT_LENGTH,
+            foot_width=FOOT_WIDTH,
+            inflation_margin=INFLATION_MARGIN,
+        )
+    else:
+        import matplotlib
+        matplotlib.use("TkAgg")
+        import matplotlib.pyplot as plt
+        from stage2.traj_visualizer import plot_trajectory_2d, plot_time_series
 
-    fig2 = plot_time_series(traj, schedule, footsteps,
-                            FOOT_LENGTH, FOOT_WIDTH, show=False)
-    plt.tight_layout()
+        fig1, ax = plt.subplots(figsize=(14, 9))
+        plot_trajectory_2d(traj, schedule, footsteps, world, ax=ax, show=False)
+        plt.tight_layout()
 
-    plt.show()
+        fig2 = plot_time_series(traj, schedule, footsteps,
+                                FOOT_LENGTH, FOOT_WIDTH, show=False)
+        plt.tight_layout()
+
+        plt.show()
 
 
 if __name__ == "__main__":
@@ -125,7 +135,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("world",     nargs="?", default="demo",  choices=list(WORLDS))
     parser.add_argument("--planner", default="astar",            choices=list(PLANNERS))
+    parser.add_argument("--viz",     default="matplotlib",       choices=["matplotlib", "rerun"])
     args = parser.parse_args()
 
     world, start, goal = WORLDS[args.world]()
-    run(world, start, goal, planner_name=args.planner)
+    run(world, start, goal, planner_name=args.planner, viz=args.viz)
