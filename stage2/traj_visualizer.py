@@ -4,14 +4,12 @@ Stage 2 visualisation:
   plot_time_series    — x(t) and y(t) subplots with support bounds
 """
 
-import numpy as np
 import matplotlib
 
 matplotlib.use("TkAgg")
-import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
-from matplotlib.collections import LineCollection
 from matplotlib.figure import Figure
 
 
@@ -27,7 +25,7 @@ def plot_trajectory_2d(
     Overlay CoM trajectory (solid) and ZMP trajectory (dashed) on the
     occupancy grid + footstep map.
     """
-    from stage1.visualizer import plot_world, plot_footsteps
+    from stage1.visualizer import plot_footsteps, plot_world
 
     if ax is None:
         fig, ax = plt.subplots(figsize=(14, 9))

@@ -5,15 +5,13 @@ import math
 import numpy as np
 import pytest
 
-from stage1.world import World
 from stage1.footstep import (
-    Footstep,
     _foot_corners,
     _foot_is_free,
     _resample_path,
     plan_footsteps,
 )
-
+from stage1.world import World
 
 # ---------------------------------------------------------------------------
 # _resample_path

@@ -6,7 +6,6 @@ import pytest
 from stage1.footstep import Footstep
 from stage2.contact_schedule import build_contact_schedule, support_polygon_at
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

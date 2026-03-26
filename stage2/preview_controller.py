@@ -191,8 +191,8 @@ def validate_zmp(
     Check that the ZMP stays inside the support polygon at every timestep.
     Returns a summary dict.
     """
-    from stage2.contact_schedule import support_polygon_at
     from stage1.stability import _point_in_polygon
+    from stage2.contact_schedule import support_polygon_at
 
     T = len(traj.t)
     n_fail = 0

@@ -10,8 +10,9 @@ Equations of motion:
     =>  zmp  = pos - (h/g) * acc
 """
 
-import numpy as np
 from dataclasses import dataclass
+
+import numpy as np
 
 
 @dataclass

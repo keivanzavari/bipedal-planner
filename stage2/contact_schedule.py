@@ -7,8 +7,9 @@ Walk cycle per step i:
   - Single support:            ZMP held at foot[i] centre
 """
 
-import numpy as np
 from dataclasses import dataclass
+
+import numpy as np
 
 from stage1.footstep import Footstep, _foot_corners
 

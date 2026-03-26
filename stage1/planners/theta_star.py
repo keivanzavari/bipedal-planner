@@ -13,8 +13,8 @@ import heapq
 
 import numpy as np
 
-from stage1.world import World
 from stage1.planners.base import _bresenham, smooth_path
+from stage1.world import World
 
 
 class ThetaStarPlanner:

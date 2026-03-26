@@ -91,6 +91,7 @@ def run(world: World, start: tuple, goal: tuple, planner_name: str = "astar", vi
 
         matplotlib.use("TkAgg")
         import matplotlib.pyplot as plt
+
         from stage1.visualizer import plot_footsteps, plot_path, plot_stability, plot_world
 
         inflated = world.inflated_grid(INFLATION_MARGIN)

@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 from stage1.footstep import Footstep
-from stage2.lipm import LIPMParams
 from stage2.contact_schedule import build_contact_schedule
+from stage2.lipm import LIPMParams
 from stage2.preview_controller import (
     CoMTrajectory,
     PreviewGains,
@@ -14,7 +14,6 @@ from stage2.preview_controller import (
     run_preview_control,
     validate_zmp,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

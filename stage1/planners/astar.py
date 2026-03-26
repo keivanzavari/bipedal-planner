@@ -2,8 +2,8 @@ import heapq
 
 import numpy as np
 
-from stage1.world import World
 from stage1.planners.base import smooth_path
+from stage1.world import World
 
 # 8-connected neighbours: (d_row, d_col, cost)
 _NEIGHBOURS = [

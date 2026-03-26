@@ -8,14 +8,13 @@ Runs Stage 1 (footstep planning) then Stage 2 (ZMP preview control),
 and shows both the 2D spatial plot and the time-series plot.
 """
 
-import sys
 import time
 
-from stage1.world import WORLDS
-from stage1.planners import PLANNERS, get_planner
 from stage1.footstep import plan_footsteps
-from stage2.lipm import LIPMParams
+from stage1.planners import PLANNERS, get_planner
+from stage1.world import WORLDS
 from stage2.contact_schedule import build_contact_schedule
+from stage2.lipm import LIPMParams
 from stage2.preview_controller import compute_gains, run_preview_control, validate_zmp
 from stage2.traj_optimizer import run_trajectory_optimization
 
@@ -136,13 +135,14 @@ def run(world, start, goal, planner_name: str = "astar", viz: str = "matplotlib"
 
         matplotlib.use("TkAgg")
         import matplotlib.pyplot as plt
-        from stage2.traj_visualizer import plot_trajectory_2d, plot_time_series
+
+        from stage2.traj_visualizer import plot_time_series, plot_trajectory_2d
 
         fig1, ax = plt.subplots(figsize=(14, 9))
         plot_trajectory_2d(traj, schedule, footsteps, world, ax=ax, show=False)
         plt.tight_layout()
 
-        fig2 = plot_time_series(traj, schedule, footsteps, FOOT_LENGTH, FOOT_WIDTH, show=False)
+        plot_time_series(traj, schedule, footsteps, FOOT_LENGTH, FOOT_WIDTH, show=False)
         plt.tight_layout()
 
         plt.show()

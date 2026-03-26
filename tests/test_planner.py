@@ -3,12 +3,11 @@
 import numpy as np
 import pytest
 
-from stage1.world import Rect, World
 from stage1.planners import PLANNERS, get_planner
 from stage1.planners.astar import AStarPlanner
 from stage1.planners.base import _bresenham, smooth_path
 from stage1.planners.theta_star import ThetaStarPlanner
-
+from stage1.world import Rect, World
 
 # ---------------------------------------------------------------------------
 # Fixtures

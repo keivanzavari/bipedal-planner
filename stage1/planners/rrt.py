@@ -8,8 +8,8 @@ the inflated occupancy grid.
 
 import numpy as np
 
-from stage1.world import World
 from stage1.planners.base import smooth_path
+from stage1.world import World
 
 
 class RRTPlanner:

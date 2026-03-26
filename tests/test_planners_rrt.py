@@ -3,9 +3,8 @@
 import numpy as np
 import pytest
 
-from stage1.world import Rect, World
 from stage1.planners.rrt import RRTPlanner
-
+from stage1.world import Rect, World
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -119,7 +118,7 @@ class TestRRTPlannerConfig:
         path2 = p2.plan(open_world, (1.0, 1.0), (9.0, 9.0))
         assert path1 is not None and path2 is not None
         assert len(path1) == len(path2)
-        for (x1, y1), (x2, y2) in zip(path1, path2):
+        for (x1, y1), (x2, y2) in zip(path1, path2, strict=True):
             assert x1 == pytest.approx(x2) and y1 == pytest.approx(y2)
 
     def test_smooth_flag_reduces_waypoints(self, open_world: World):

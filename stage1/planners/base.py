@@ -4,8 +4,6 @@ Planner protocol and shared utilities (smooth_path, Bresenham line check).
 
 from typing import Protocol
 
-import numpy as np
-
 from stage1.world import World
 
 

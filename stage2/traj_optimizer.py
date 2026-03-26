@@ -55,7 +55,6 @@ from stage2.contact_schedule import ContactSchedule
 from stage2.lipm import LIPMParams, lipm_matrices
 from stage2.preview_controller import CoMTrajectory
 
-
 # ---------------------------------------------------------------------------
 # Building blocks (reusable, tested independently)
 # ---------------------------------------------------------------------------

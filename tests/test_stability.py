@@ -1,9 +1,7 @@
 """Tests for stage1/stability.py — support polygon and stability checks."""
 
-import math
 
 import numpy as np
-import pytest
 
 from stage1.footstep import Footstep
 from stage1.stability import (
@@ -12,7 +10,6 @@ from stage1.stability import (
     _point_in_polygon,
     check_stability,
 )
-
 
 # ---------------------------------------------------------------------------
 # _point_in_polygon
