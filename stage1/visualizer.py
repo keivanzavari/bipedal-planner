@@ -6,6 +6,7 @@ from stage1.world import World
 matplotlib.use("TkAgg")  # Or 'QtAgg' if you installed PyQt
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 from matplotlib.colors import ListedColormap
 
 
@@ -14,9 +15,9 @@ def plot_world(
     start: tuple[float, float] | None = None,
     goal: tuple[float, float] | None = None,
     inflated_grid: np.ndarray | None = None,
-    ax: plt.Axes | None = None,
+    ax: Axes | None = None,
     show: bool = True,
-) -> plt.Axes:
+) -> Axes:
     """
     Render the occupancy grid.
 
@@ -31,7 +32,7 @@ def plot_world(
     if ax is None:
         fig, ax = plt.subplots(figsize=(10, 8))
 
-    extent = [0, world.width, 0, world.height]
+    extent = (0, world.width, 0, world.height)
 
     # Base occupancy grid — white=free, dark=obstacle
     cmap_base = ListedColormap(["#f5f5f5", "#333333"])
@@ -101,7 +102,7 @@ def plot_world(
 
 def plot_path(
     waypoints: list[tuple[float, float]],
-    ax: plt.Axes,
+    ax: Axes,
     color: str = "#3498db",
     label: str = "CoM path",
     zorder: int = 4,
@@ -119,7 +120,7 @@ def plot_path(
 
 def plot_footsteps(
     footsteps,
-    ax: plt.Axes,
+    ax: Axes,
     foot_length: float = 0.16,
     foot_width: float = 0.08,
     zorder: int = 6,
@@ -137,11 +138,9 @@ def plot_footsteps(
         # Bottom-left corner of the rectangle (in world coords)
         # Centre is (fs.x, fs.y); rotate the local (-half_l, -half_w) corner
         half_l, half_w = foot_length / 2, foot_width / 2
-        corner = np.array(
-            [
-                fs.x - c * half_l + s * half_w,
-                fs.y - s * half_l - c * half_w,
-            ]
+        corner = (
+            fs.x - c * half_l + s * half_w,
+            fs.y - s * half_l - c * half_w,
         )
         angle_deg = np.degrees(fs.theta)
 
@@ -174,7 +173,7 @@ def plot_footsteps(
 
 def plot_stability(
     phases,
-    ax: plt.Axes,
+    ax: Axes,
     show_com: bool = True,
     zorder: int = 7,
 ):

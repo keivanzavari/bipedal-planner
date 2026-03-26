@@ -10,10 +10,14 @@ Online:  at each timestep, apply the control law:
 The x and y axes are decoupled — run independently with the same gains.
 """
 
-import numpy as np
 from dataclasses import dataclass
+from typing import Any
+
+import numpy as np
 from scipy.linalg import solve_discrete_are
 
+from stage1.footstep import Footstep
+from stage2.contact_schedule import ContactSchedule
 from stage2.lipm import LIPMParams, lipm_matrices
 
 
@@ -147,8 +151,8 @@ def _run_1d(
 
 
 def run_preview_control(
-    schedule,  # ContactSchedule from contact_schedule.py
-    footsteps: list,  # list[Footstep] — used for initial CoM position
+    schedule: ContactSchedule,
+    footsteps: list[Footstep],
     gains: PreviewGains,
 ) -> CoMTrajectory:
     """
@@ -178,11 +182,11 @@ def run_preview_control(
 
 def validate_zmp(
     traj: CoMTrajectory,
-    schedule,
-    footsteps: list,
+    schedule: ContactSchedule,
+    footsteps: list[Footstep],
     foot_length: float = 0.16,
     foot_width: float = 0.08,
-) -> dict:
+) -> dict[str, Any]:
     """
     Check that the ZMP stays inside the support polygon at every timestep.
     Returns a summary dict.

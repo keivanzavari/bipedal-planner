@@ -10,7 +10,9 @@ import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from matplotlib.axes import Axes
 from matplotlib.collections import LineCollection
+from matplotlib.figure import Figure
 
 
 def plot_trajectory_2d(
@@ -18,9 +20,9 @@ def plot_trajectory_2d(
     schedule,  # ContactSchedule
     footsteps: list,
     world,
-    ax: plt.Axes | None = None,
+    ax: Axes | None = None,
     show: bool = True,
-) -> plt.Axes:
+) -> Axes:
     """
     Overlay CoM trajectory (solid) and ZMP trajectory (dashed) on the
     occupancy grid + footstep map.
@@ -60,7 +62,7 @@ def plot_time_series(
     foot_length: float = 0.16,
     foot_width: float = 0.08,
     show: bool = True,
-) -> plt.Figure:
+) -> Figure:
     """
     Time-series plot with four subplots:
       Row 1: x position (CoM + ZMP + ZMP ref) + phase shading

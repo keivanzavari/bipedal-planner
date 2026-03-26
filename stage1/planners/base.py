@@ -10,6 +10,8 @@ from stage1.world import World
 
 
 class Planner(Protocol):
+    inflation_margin: float
+
     def plan(
         self,
         world: World,
