@@ -5,40 +5,30 @@ Implements the condensed-QP formulation from:
   de Viragh et al., "Trajectory Optimization for Wheeled-Legged Quadrupedal Robots
   using Linearized ZMP Constraints", IEEE RA-L 2019.
 
-Instead of the closed-form Kajita preview controller (which tracks the ZMP reference
-implicitly), this module formulates an explicit constrained quadratic program:
+This module uses OSQP with the **non-condensed (sparse) formulation**:
 
-    min   Q_e·‖P·u_x + p_free_x − p_ref_x‖²  +  R·‖u_x‖²
-     u_x
-    s.t.  lb_x[k] ≤ (P·u_x + p_free_x)[k] ≤ ub_x[k]   ∀ k
+    Decision variables: z = [x[0]', ..., x[T-1]', u[0], ..., u[T-1]] in R^(4T)
 
-and an identical independent problem for u_y.  lb/ub are the axis-aligned
-extents of the support polygon at each timestep.
+    min   Q_e * sum_k (C @ x[k] - p_ref[k])^2  +  R * sum_k u[k]^2
+     z
+    s.t.  x[0]    = x0
+          x[k+1]  = A @ x[k] + B * u[k]   for all k   (dynamics, equality)
+          lb[k]  <= C @ x[k] <= ub[k]      for all k   (ZMP polygon, inequality)
 
-Decoupling x and y reduces the problem from a 2T-variable joint QP to two
-T-variable QPs, each with 2T simple bound constraints on the ZMP.  SLSQP
-solves each in a few seconds for typical trajectory lengths (T ≈ 600).
+The constraint matrix is block-bidiagonal with O(T) non-zeros, which lets
+OSQP's ADMM solver run in O(T) per iteration — compared to O(T^2) per iteration
+for SLSQP on the condensed (dense) formulation and O(T^3) to form the Hessian.
 
 Formulation details
 -------------------
-State:   x[k] ∈ R³  (pos, vel, acc)
-Control: u[k] ∈ R   (jerk)
-ZMP:     p[k] = C @ x[k]   (linearised from LIPM: p = pos - h/g·acc)
-
-Propagation (eliminates states → purely in terms of u):
-  x[k] = A^k x0  +  P_prop[k,:] @ u
-  p[k] = p_free[k]  +  P_prop[k,:] @ u
-
-where P_prop is a strictly-lower-triangular Toeplitz matrix:
-  P_prop[k,j] = C @ A^(k-1-j) @ B   for j < k,  else 0
+State:   x[k] in R^3  (pos, vel, acc)
+Control: u[k] in R    (jerk)
+ZMP:     p[k] = C @ x[k]   (linearised from LIPM: p = pos - h/g*acc)
 
 ZMP bounds are the axis-aligned bounding boxes of the support polygon vertices
-(exact for axis-aligned feet; conservative for rotated feet — the polygon
-constraint then lies inside the bounding box, so the ZMP constraint is
-strictly satisfied).
+(exact for axis-aligned feet; conservative for rotated feet).
 
-Performance: ~5–30 s per axis for T ≈ 600; compare ~50 ms for preview control.
-Use offline; use the preview controller for real-time applications.
+Performance: ~0.1-2 s for T ~= 1000, scaling linearly with T.
 """
 
 from __future__ import annotations
@@ -46,8 +36,9 @@ from __future__ import annotations
 import warnings
 
 import numpy as np
-from scipy.linalg import solve, toeplitz
-from scipy.optimize import minimize
+import osqp
+import scipy.sparse as sp
+from scipy.linalg import toeplitz
 from scipy.spatial import ConvexHull
 
 from stage1.footstep import Footstep, _foot_corners
@@ -61,10 +52,9 @@ from stage2.preview_controller import CoMTrajectory
 
 
 def build_propagation_matrix(A: np.ndarray, B: np.ndarray, C: np.ndarray, T: int) -> np.ndarray:
-    """Return the T×T strictly-lower-triangular Toeplitz propagation matrix P.
+    """Return the T x T strictly-lower-triangular Toeplitz propagation matrix P.
 
     P[k, j] = C @ A^(k-1-j) @ B  for j < k,  else 0.
-
     The ZMP at timestep k is:  zmp[k] = p_free[k] + P[k, :] @ u
     """
     g = np.empty(T)
@@ -72,14 +62,12 @@ def build_propagation_matrix(A: np.ndarray, B: np.ndarray, C: np.ndarray, T: int
     for n in range(T):
         g[n] = float(C @ Ak @ B)
         Ak = A @ Ak
-
-    # Strictly lower-triangular Toeplitz: first column = [0, g[0], ..., g[T-2]]
     col = np.concatenate([[0.0], g[: T - 1]])
     return toeplitz(col, np.zeros(T))
 
 
 def free_response(A: np.ndarray, C: np.ndarray, x0: np.ndarray, T: int) -> np.ndarray:
-    """Return p_free[k] = C @ A^k @ x0 for k = 0 … T-1."""
+    """Return p_free[k] = C @ A^k @ x0 for k = 0 ... T-1."""
     p = np.empty(T)
     x = x0.copy()
     for k in range(T):
@@ -94,10 +82,9 @@ def precompute_polygons(
     foot_length: float,
     foot_width: float,
 ) -> dict[tuple[int, str], tuple[np.ndarray, np.ndarray]]:
-    """Build a (phase, kind) → (A, b) half-plane cache for every unique contact state.
+    """Build a (phase, kind) -> (A, b) half-plane cache for every unique contact state.
 
-    A @ p ≤ b  iff  p is inside the support polygon.
-    Uses ConvexHull.equations to avoid vertex-ordering assumptions.
+    A @ p <= b  iff  p is inside the support polygon.
     """
     cache: dict[tuple[int, str], tuple[np.ndarray, np.ndarray]] = {}
     for k in range(len(schedule.t)):
@@ -120,12 +107,7 @@ def _compute_zmp_bounds(
     foot_length: float,
     foot_width: float,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Return per-timestep axis-aligned ZMP bounds (lb_x, ub_x, lb_y, ub_y).
-
-    For axis-aligned feet (theta ≈ 0) these match the exact foot rectangle.
-    For rotated feet the bounding box is conservative: the polygon is a subset,
-    so any ZMP inside the polygon automatically satisfies the bounds.
-    """
+    """Return per-timestep axis-aligned ZMP bounds (lb_x, ub_x, lb_y, ub_y)."""
     T = len(schedule.t)
     lb_x = np.empty(T)
     ub_x = np.empty(T)
@@ -151,60 +133,120 @@ def _compute_zmp_bounds(
     return lb_x, ub_x, lb_y, ub_y
 
 
-def _solve_1d_qp(
-    P: np.ndarray,
-    p_free: np.ndarray,
+# ---------------------------------------------------------------------------
+# Sparse OSQP solver — non-condensed formulation
+# ---------------------------------------------------------------------------
+
+
+def _solve_1d_qp_sparse(
+    A: np.ndarray,
+    B: np.ndarray,
+    C: np.ndarray,
+    x0: np.ndarray,
     p_ref: np.ndarray,
     lb: np.ndarray,
     ub: np.ndarray,
     Q_e: float,
     R_jerk: float,
-) -> tuple[np.ndarray, bool]:
-    """Solve a single-axis constrained QP.
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, bool]:
+    """Solve the 1D trajectory QP with OSQP using the non-condensed sparse formulation.
 
-    min   Q_e·‖P·u + p_free − p_ref‖²  +  R·‖u‖²
-     u
-    s.t.  lb ≤ P·u + p_free ≤ ub
+    Variables: z = [x[0]', ..., x[T-1]', u[0], ..., u[T-1]] in R^(4T)
 
-    Returns (u_opt, converged).
+    The constraint matrix is block-bidiagonal with O(T) non-zeros, so each
+    OSQP ADMM iteration costs O(T) rather than O(T^2) for the condensed form.
+
+    Returns (pos, vel, acc, zmp, converged).
     """
-    T = len(p_free)
+    T = len(p_ref)
+    nx = 3  # state dimension (pos, vel, acc)
+    n_vars = nx * T + T  # 3T states + T controls
 
-    # Warm-start: unconstrained optimum (then SLSQP just projects to the feasible set)
-    H = Q_e * (P.T @ P) + R_jerk * np.eye(T)
-    f = Q_e * (P.T @ (p_free - p_ref))
-    u0 = -solve(H, f, assume_a="pos")
+    # --- Objective: OSQP form  min (1/2) z'Pz + q'z ---
+    # State blocks:   2*Q_e*(C outer C)  (nx x nx each)
+    # Control blocks: 2*R_jerk           (scalar each)
+    CTC = np.outer(C, C)
+    H_states = sp.block_diag([2.0 * Q_e * CTC] * T, format="csc")
+    H_controls = (2.0 * R_jerk) * sp.eye(T, format="csc")
+    P_osqp = sp.block_diag([H_states, H_controls], format="csc")
 
-    def objective(u: np.ndarray) -> float:
-        r = P @ u + p_free - p_ref
-        return float(Q_e * (r @ r) + R_jerk * (u @ u))
+    # Linear term: q[nx*k : nx*(k+1)] = -2*Q_e*p_ref[k]*C,  q[nx*T + k] = 0
+    q = np.zeros(n_vars)
+    for k in range(T):
+        q[k * nx : (k + 1) * nx] = -2.0 * Q_e * p_ref[k] * C
 
-    def gradient(u: np.ndarray) -> np.ndarray:
-        r = P @ u + p_free - p_ref
-        return 2.0 * (Q_e * (P.T @ r) + R_jerk * u)
+    # --- Constraint matrix (block-bidiagonal, O(T) non-zeros) ---
+    # Row layout:
+    #   [0 : nx]          — initial state equality   (nx rows)
+    #   [nx : nx*T]       — dynamics equality         (nx*(T-1) rows)
+    #   [nx*T : 4T-2]     — ZMP inequality            (T rows)
+    n_eq_init = nx
+    n_eq_dyn = nx * (T - 1)
+    n_ineq_zmp = T
+    n_constraints = n_eq_init + n_eq_dyn + n_ineq_zmp
 
-    # ZMP bounds: lb ≤ P @ u + p_free ≤ ub  →  lb - p_free ≤ P @ u ≤ ub - p_free
-    # Small inset margin (0.1 mm) ensures strict feasibility after reconstruction
-    # floating-point accumulation (~1e-12) and SLSQP constraint tolerance (~1e-6).
+    rows: list[int] = []
+    cols: list[int] = []
+    vals: list[float] = []
+
+    def _add(r: int, c: int, v: float) -> None:
+        rows.append(r)
+        cols.append(c)
+        vals.append(v)
+
+    # Block 1: x[0] = x0
+    for i in range(nx):
+        _add(i, i, 1.0)
+
+    # Block 2: x[k+1] - A @ x[k] - B * u[k] = 0  for k = 0 ... T-2
+    r0 = n_eq_init
+    for k in range(T - 1):
+        row_base = r0 + k * nx
+        for i in range(nx):
+            _add(row_base + i, (k + 1) * nx + i, 1.0)       # +I x[k+1]
+        for i in range(nx):
+            for j in range(nx):
+                _add(row_base + i, k * nx + j, -A[i, j])    # -A x[k]
+        for i in range(nx):
+            _add(row_base + i, nx * T + k, -float(B[i]))    # -B u[k]
+
+    # Block 3: C @ x[k]  (one row per timestep)
+    r1 = n_eq_init + n_eq_dyn
+    for k in range(T):
+        for j in range(nx):
+            if C[j] != 0.0:
+                _add(r1 + k, k * nx + j, float(C[j]))
+
+    A_osqp = sp.csc_matrix((vals, (rows, cols)), shape=(n_constraints, n_vars))
+
+    # --- Bounds ---
+    # Small inset (0.1 mm) keeps ZMP strictly inside the polygon after rounding.
     _eps = 1e-4
-    lb_eff = lb - p_free + _eps
-    ub_eff = ub - p_free - _eps
-    # SLSQP-style dicts avoid scipy's poorly-typed LinearConstraint stubs.
-    # 'ineq' means f(u) >= 0, so lower: P@u - lb_eff >= 0, upper: ub_eff - P@u >= 0.
-    constraints = [
-        {"type": "ineq", "fun": lambda u, b=lb_eff: P @ u - b, "jac": lambda u: P},
-        {"type": "ineq", "fun": lambda u, b=ub_eff: b - P @ u, "jac": lambda u: -P},
-    ]
+    l_vec = np.empty(n_constraints)
+    u_vec = np.empty(n_constraints)
 
-    result = minimize(
-        objective,
-        u0,
-        jac=gradient,
-        method="SLSQP",
-        constraints=constraints,
-        options={"ftol": 1e-9, "maxiter": 2000},
-    )
-    return result.x, result.success
+    l_vec[:nx] = x0
+    u_vec[:nx] = x0
+
+    l_vec[n_eq_init : n_eq_init + n_eq_dyn] = 0.0
+    u_vec[n_eq_init : n_eq_init + n_eq_dyn] = 0.0
+
+    l_vec[r1:] = lb + _eps
+    u_vec[r1:] = ub - _eps
+
+    # --- Solve ---
+    solver = osqp.OSQP()
+    solver.setup(P_osqp, q, A_osqp, l_vec, u_vec, verbose=False, eps_abs=1e-6, eps_rel=1e-6, max_iter=10000)
+    result = solver.solve()
+
+    states = result.x[: nx * T].reshape(T, nx)
+    pos = states[:, 0]
+    vel = states[:, 1]
+    acc = states[:, 2]
+    zmp = states @ C  # (T, 3) @ (3,) -> (T,)
+
+    converged = result.info.status in ("solved", "solved_inaccurate")
+    return pos, vel, acc, zmp, converged
 
 
 # ---------------------------------------------------------------------------
@@ -221,14 +263,17 @@ def run_trajectory_optimization(
     Q_e: float = 1.0,
     R_jerk: float = 1e-6,
 ) -> CoMTrajectory:
-    """Compute a CoM trajectory via a condensed QP with explicit ZMP polygon constraints.
+    """Compute a CoM trajectory via a sparse QP with explicit ZMP polygon constraints.
 
     Guarantees ZMP stays within the support polygon at every timestep
     (up to numerical tolerance), unlike the preview controller which satisfies
     the constraint only implicitly.
 
-    The x and y axes are solved as independent T-variable QPs with axis-aligned
-    ZMP bound constraints derived from the support polygon at each timestep.
+    Uses OSQP with the non-condensed (sparse) formulation: dynamics and ZMP
+    constraints are expressed over explicit state/control variables, giving a
+    block-bidiagonal constraint matrix with O(T) non-zeros. This scales linearly
+    with trajectory length (contrast: the condensed dense formulation needs
+    O(T^2) memory and O(T^3) to assemble the Hessian).
 
     Parameters
     ----------
@@ -237,7 +282,7 @@ def run_trajectory_optimization(
     params      : LIPM model parameters (h, g, dt)
     foot_length : foot rectangle length (m)
     foot_width  : foot rectangle width (m)
-    Q_e         : ZMP tracking weight  (same meaning as in preview controller)
+    Q_e         : ZMP tracking weight
     R_jerk      : jerk regularisation weight
 
     Returns
@@ -248,36 +293,24 @@ def run_trajectory_optimization(
     T = len(schedule.t)
 
     # Initial CoM: first foot centre.
-    # P[0,:] = 0 (strictly lower-triangular), so ZMP[0] = C @ x0 regardless of u.
-    # Setting x0 = foot_0_centre ensures ZMP[0] is inside the first support polygon.
-    # (The midpoint-between-feet used by run_preview_control places ZMP[0] outside
-    #  foot 0's polygon, making the constraint at k=0 permanently infeasible.)
-    com_init_x = footsteps[0].x
-    com_init_y = footsteps[0].y
-    x0_x = np.array([com_init_x, 0.0, 0.0])
-    x0_y = np.array([com_init_y, 0.0, 0.0])
+    # The initial-state equality fixes x[0] = x0, so ZMP[0] = C @ x0 regardless
+    # of controls. Foot 0's centre guarantees ZMP[0] is inside the first polygon
+    # (the midpoint between feet would violate the k=0 constraint).
+    x0_x = np.array([footsteps[0].x, 0.0, 0.0])
+    x0_y = np.array([footsteps[0].y, 0.0, 0.0])
 
-    print("  [QP] Building propagation matrix …")
-    P = build_propagation_matrix(A, B, C, T)
-    p_free_x = free_response(A, C, x0_x, T)
-    p_free_y = free_response(A, C, x0_y, T)
-
-    print("  [QP] Computing per-timestep ZMP bounds …")
+    print("  [QP] Computing per-timestep ZMP bounds ...")
     lb_x, ub_x, lb_y, ub_y = _compute_zmp_bounds(schedule, footsteps, foot_length, foot_width)
 
-    print(f"  [QP] Solving x-axis QP ({T} variables) …")
-    u_x, ok_x = _solve_1d_qp(P, p_free_x, schedule.zmp_x, lb_x, ub_x, Q_e, R_jerk)
+    print(f"  [QP] Solving x-axis QP ({T} timesteps, sparse OSQP) ...")
+    px, vx, ax_arr, zx, ok_x = _solve_1d_qp_sparse(A, B, C, x0_x, schedule.zmp_x, lb_x, ub_x, Q_e, R_jerk)
     if not ok_x:
         warnings.warn("Trajectory optimizer (x-axis) did not converge.", stacklevel=2)
 
-    print(f"  [QP] Solving y-axis QP ({T} variables) …")
-    u_y, ok_y = _solve_1d_qp(P, p_free_y, schedule.zmp_y, lb_y, ub_y, Q_e, R_jerk)
+    print(f"  [QP] Solving y-axis QP ({T} timesteps, sparse OSQP) ...")
+    py, vy, ay_arr, zy, ok_y = _solve_1d_qp_sparse(A, B, C, x0_y, schedule.zmp_y, lb_y, ub_y, Q_e, R_jerk)
     if not ok_y:
         warnings.warn("Trajectory optimizer (y-axis) did not converge.", stacklevel=2)
-
-    # Reconstruct full state trajectories from optimal jerk sequences
-    px, vx, ax_arr, zx = _reconstruct(u_x, A, B, C, x0_x, T)
-    py, vy, ay_arr, zy = _reconstruct(u_y, A, B, C, x0_y, T)
 
     return CoMTrajectory(
         t=schedule.t,
@@ -290,26 +323,3 @@ def run_trajectory_optimization(
         zmp_x=zx,
         zmp_y=zy,
     )
-
-
-def _reconstruct(
-    u: np.ndarray,
-    A: np.ndarray,
-    B: np.ndarray,
-    C: np.ndarray,
-    x0: np.ndarray,
-    T: int,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Forward-propagate state from x0 using jerk sequence u. Returns pos, vel, acc, zmp."""
-    pos = np.empty(T)
-    vel = np.empty(T)
-    acc = np.empty(T)
-    zmp = np.empty(T)
-    state = x0.copy()
-    for k in range(T):
-        pos[k] = state[0]
-        vel[k] = state[1]
-        acc[k] = state[2]
-        zmp[k] = float(C @ state)
-        state = A @ state + B * u[k]
-    return pos, vel, acc, zmp
