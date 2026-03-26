@@ -33,12 +33,12 @@ def visualize_stage1(
     log_world("world/occupancy", world)
     rr.log(
         "world/start",
-        rr.Points2D([[start[0], start[1]]], colors=[[46, 204, 113, 255]], radii=0.08),
+        rr.Points3D([[start[0], start[1], 0.0]], colors=[[46, 204, 113, 255]], radii=0.08),
         static=True,
     )
     rr.log(
         "world/goal",
-        rr.Points2D([[goal[0], goal[1]]], colors=[[231, 76, 60, 255]], radii=0.08),
+        rr.Points3D([[goal[0], goal[1], 0.0]], colors=[[231, 76, 60, 255]], radii=0.08),
         static=True,
     )
 

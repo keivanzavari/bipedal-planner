@@ -129,6 +129,7 @@ def run(world, start, goal, planner_name: str = "astar", viz: str = "matplotlib"
             foot_length=FOOT_LENGTH,
             foot_width=FOOT_WIDTH,
             inflation_margin=INFLATION_MARGIN,
+            com_height=LIPM_PARAMS.h,
         )
     else:
         import matplotlib

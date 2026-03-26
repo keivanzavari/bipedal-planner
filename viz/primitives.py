@@ -1,4 +1,7 @@
-"""Low-level Rerun logging helpers.
+"""Low-level Rerun logging helpers — all spatial geometry is logged in 3D.
+
+Ground-plane entities (world, feet, support polygons, waypoints) live at z=0.
+CoM entities live at z=com_height (the LIPM pendulum height).
 
 Static geometry (world, footsteps, trajectory overview) is logged with static=True.
 Time-indexed data (animated markers, scalars) uses rr.set_time_seconds("t", ...).
@@ -17,28 +20,37 @@ def _stride(T: int, target: int) -> int:
     return max(1, T // target)
 
 
-def log_world(entity_path: str, world) -> None:
-    """Log obstacles as LineStrips2D batches and the world boundary."""
+def log_world(entity_path: str, world, obstacle_height: float = 1.0) -> None:
+    """Log obstacles as solid Boxes3D and the world boundary at z=0.
+
+    Obstacles are extruded to `obstacle_height` (default 1 m — taller than the
+    CoM at 0.8 m) so they read as walls in the 3D view.
+    """
     if world.obstacles:
-        strips = []
+        centers = []
+        half_sizes = []
         for obs in world.obstacles:
             x, y, w, h = obs.x, obs.y, obs.w, obs.h
-            strip = np.array(
-                [[x, y], [x + w, y], [x + w, y + h], [x, y + h], [x, y]],
-                dtype=np.float32,
-            )
-            strips.append(strip)
+            centers.append([x + w / 2, y + h / 2, obstacle_height / 2])
+            half_sizes.append([w / 2, h / 2, obstacle_height / 2])
         rr.log(
             f"{entity_path}/obstacles",
-            rr.LineStrips2D(strips, colors=[[80, 80, 80, 220]] * len(strips)),
+            rr.Boxes3D(
+                centers=np.array(centers, dtype=np.float32),
+                half_sizes=np.array(half_sizes, dtype=np.float32),
+                colors=[[80, 80, 80, 160]],
+                fill_mode=rr.components.FillMode.Solid,
+            ),
             static=True,
         )
 
     W, H = world.width, world.height
-    boundary = np.array([[0, 0], [W, 0], [W, H], [0, H], [0, 0]], dtype=np.float32)
+    boundary = np.array(
+        [[0, 0, 0], [W, 0, 0], [W, H, 0], [0, H, 0], [0, 0, 0]], dtype=np.float32
+    )
     rr.log(
         f"{entity_path}/boundary",
-        rr.LineStrips2D([boundary], colors=[[0, 0, 0, 255]]),
+        rr.LineStrips3D([boundary], colors=[[0, 0, 0, 255]]),
         static=True,
     )
 
@@ -46,16 +58,19 @@ def log_world(entity_path: str, world) -> None:
 def log_waypoints(entity_path: str, path: list) -> None:
     if not path:
         return
-    points = np.array(path, dtype=np.float32)
+    pts = np.array(path, dtype=np.float32)
+    points_3d = np.column_stack([pts, np.zeros(len(pts), dtype=np.float32)])
     rr.log(
         entity_path,
-        rr.LineStrips2D([points], colors=[[52, 152, 219, 255]]),
+        rr.LineStrips3D([points_3d], colors=[[52, 152, 219, 255]]),
         static=True,
     )
 
 
-def _foot_corners(x: float, y: float, theta: float, foot_length: float, foot_width: float) -> np.ndarray:
-    """Return the 4 corners of a foot rectangle in world coordinates."""
+def _foot_corners(
+    x: float, y: float, theta: float, foot_length: float, foot_width: float
+) -> np.ndarray:
+    """Return the 4 corners of a foot rectangle in world coordinates (2D)."""
     hl, hw = foot_length / 2, foot_width / 2
     local = np.array([[-hl, -hw], [hl, -hw], [hl, hw], [-hl, hw]], dtype=np.float64)
     c, s = math.cos(theta), math.sin(theta)
@@ -70,13 +85,14 @@ def log_foot_polygons(
     foot_length: float,
     foot_width: float,
 ) -> None:
-    """Log all left/right foot rectangles as closed LineStrips2D, batched per side."""
+    """Log all left/right foot rectangles as closed LineStrips3D at z=0."""
     left_strips: list[np.ndarray] = []
     right_strips: list[np.ndarray] = []
 
     for fs in footsteps:
         corners = _foot_corners(fs.x, fs.y, fs.theta, foot_length, foot_width)
-        closed = np.concatenate([corners, corners[:1]], axis=0).astype(np.float32)
+        corners_3d = np.column_stack([corners, np.zeros(4)])
+        closed = np.concatenate([corners_3d, corners_3d[:1]], axis=0).astype(np.float32)
         if fs.side == "L":
             left_strips.append(closed)
         else:
@@ -85,19 +101,19 @@ def log_foot_polygons(
     if left_strips:
         rr.log(
             path_left,
-            rr.LineStrips2D(left_strips, colors=[[52, 152, 219, 200]] * len(left_strips)),
+            rr.LineStrips3D(left_strips, colors=[[52, 152, 219, 200]] * len(left_strips)),
             static=True,
         )
     if right_strips:
         rr.log(
             path_right,
-            rr.LineStrips2D(right_strips, colors=[[231, 76, 60, 200]] * len(right_strips)),
+            rr.LineStrips3D(right_strips, colors=[[231, 76, 60, 200]] * len(right_strips)),
             static=True,
         )
 
 
 def log_support_polygons(path_stable: str, path_unstable: str, phases) -> None:
-    """Log support polygon convex hulls, split by stability."""
+    """Log support polygon convex hulls at z=0, split by stability."""
     stable_strips: list[np.ndarray] = []
     unstable_strips: list[np.ndarray] = []
 
@@ -105,7 +121,8 @@ def log_support_polygons(path_stable: str, path_unstable: str, phases) -> None:
         poly = phase.support_polygon
         if len(poly) < 3:
             continue
-        closed = np.concatenate([poly, poly[:1]], axis=0).astype(np.float32)
+        poly_3d = np.column_stack([poly, np.zeros(len(poly))])
+        closed = np.concatenate([poly_3d, poly_3d[:1]], axis=0).astype(np.float32)
         if phase.stable:
             stable_strips.append(closed)
         else:
@@ -114,60 +131,79 @@ def log_support_polygons(path_stable: str, path_unstable: str, phases) -> None:
     if stable_strips:
         rr.log(
             path_stable,
-            rr.LineStrips2D(stable_strips, colors=[[46, 204, 113, 180]] * len(stable_strips)),
+            rr.LineStrips3D(stable_strips, colors=[[46, 204, 113, 180]] * len(stable_strips)),
             static=True,
         )
     if unstable_strips:
         rr.log(
             path_unstable,
-            rr.LineStrips2D(unstable_strips, colors=[[231, 76, 60, 180]] * len(unstable_strips)),
+            rr.LineStrips3D(unstable_strips, colors=[[231, 76, 60, 180]] * len(unstable_strips)),
             static=True,
         )
 
 
-def log_com_stability_points(path_stable: str, path_unstable: str, phases) -> None:
-    """Log CoM positions at each stance phase, coloured by stability."""
+def log_com_stability_points(
+    path_stable: str, path_unstable: str, phases, com_height: float = 0.0
+) -> None:
+    """Log CoM positions at each stance phase as Points3D, coloured by stability."""
     stable_pts: list[np.ndarray] = []
     unstable_pts: list[np.ndarray] = []
 
     for phase in phases:
         com = phase.com[:2]
+        pt = np.array([com[0], com[1], com_height], dtype=np.float32)
         if phase.stable:
-            stable_pts.append(com)
+            stable_pts.append(pt)
         else:
-            unstable_pts.append(com)
+            unstable_pts.append(pt)
 
     if stable_pts:
         rr.log(
             path_stable,
-            rr.Points2D(np.array(stable_pts, dtype=np.float32), colors=[[46, 204, 113, 255]], radii=0.03),
+            rr.Points3D(
+                np.array(stable_pts, dtype=np.float32),
+                colors=[[46, 204, 113, 255]],
+                radii=0.03,
+            ),
             static=True,
         )
     if unstable_pts:
         rr.log(
             path_unstable,
-            rr.Points2D(np.array(unstable_pts, dtype=np.float32), colors=[[231, 76, 60, 255]], radii=0.03),
+            rr.Points3D(
+                np.array(unstable_pts, dtype=np.float32),
+                colors=[[231, 76, 60, 255]],
+                radii=0.03,
+            ),
             static=True,
         )
 
 
-def log_spatial_trajectory(path_com: str, path_zmp: str, traj) -> None:
-    """Log CoM and ZMP paths as downsampled static overview strips."""
+def log_spatial_trajectory(
+    path_com: str, path_zmp: str, traj, com_height: float
+) -> None:
+    """Log CoM (at com_height) and ZMP (at z=0) as downsampled static overview strips."""
     T = len(traj.t)
     s = _stride(T, 2000)
-    com_pts = np.column_stack([traj.x[::s], traj.y[::s]]).astype(np.float32)
-    zmp_pts = np.column_stack([traj.zmp_x[::s], traj.zmp_y[::s]]).astype(np.float32)
+    idx = range(0, T, s)
 
-    rr.log(path_com, rr.LineStrips2D([com_pts], colors=[[230, 126, 34, 255]]), static=True)
-    rr.log(path_zmp, rr.LineStrips2D([zmp_pts], colors=[[155, 89, 182, 255]]), static=True)
+    com_pts = np.column_stack(
+        [traj.x[::s], traj.y[::s], np.full(len(traj.x[::s]), com_height)]
+    ).astype(np.float32)
+    zmp_pts = np.column_stack(
+        [traj.zmp_x[::s], traj.zmp_y[::s], np.zeros(len(list(idx)))]
+    ).astype(np.float32)
+
+    rr.log(path_com, rr.LineStrips3D([com_pts], colors=[[230, 126, 34, 255]]), static=True)
+    rr.log(path_zmp, rr.LineStrips3D([zmp_pts], colors=[[155, 89, 182, 255]]), static=True)
 
 
-def log_animated_trajectory(path_com: str, path_zmp: str, traj) -> None:
-    """Log CoM and ZMP as time-indexed Points2D.
+def log_animated_trajectory(
+    path_com: str, path_zmp: str, traj, com_height: float
+) -> None:
+    """Log CoM (at com_height) and ZMP (at z=0) as time-indexed Points3D.
 
     Creates moving markers that animate when the Rerun timeline is scrubbed.
-    Uses the same "t" timeline as log_scalar_timeseries so spatial and
-    time-series panels stay in sync.
     """
     T = len(traj.t)
     s = _stride(T, 1000)
@@ -175,17 +211,60 @@ def log_animated_trajectory(path_com: str, path_zmp: str, traj) -> None:
         rr.set_time_seconds("t", float(traj.t[i]))
         rr.log(
             path_com,
-            rr.Points2D([[float(traj.x[i]), float(traj.y[i])]], colors=[[230, 126, 34, 255]], radii=0.05),
+            rr.Points3D(
+                [[float(traj.x[i]), float(traj.y[i]), com_height]],
+                colors=[[230, 126, 34, 255]],
+                radii=0.05,
+            ),
         )
         rr.log(
             path_zmp,
-            rr.Points2D([[float(traj.zmp_x[i]), float(traj.zmp_y[i])]], colors=[[155, 89, 182, 255]], radii=0.05),
+            rr.Points3D(
+                [[float(traj.zmp_x[i]), float(traj.zmp_y[i]), 0.0]],
+                colors=[[155, 89, 182, 255]],
+                radii=0.05,
+            ),
+        )
+
+
+def log_pendulum_rod(entity_path: str, traj, com_height: float) -> None:
+    """Animated inverted-pendulum rod connecting ZMP (z=0) to CoM (z=com_height).
+
+    Logged time-indexed so it animates together with the trajectory markers.
+    """
+    T = len(traj.t)
+    s = _stride(T, 1000)
+    for i in range(0, T, s):
+        rr.set_time_seconds("t", float(traj.t[i]))
+        rod = np.array(
+            [
+                [float(traj.zmp_x[i]), float(traj.zmp_y[i]), 0.0],
+                [float(traj.x[i]), float(traj.y[i]), com_height],
+            ],
+            dtype=np.float32,
+        )
+        rr.log(entity_path, rr.LineStrips3D([rod], colors=[[255, 255, 255, 200]], radii=0.008))
+
+
+def log_com_velocity_arrows(entity_path: str, traj, com_height: float) -> None:
+    """Animated velocity arrow at the CoM position, pointing in the direction of travel."""
+    T = len(traj.t)
+    s = _stride(T, 1000)
+    scale = 0.25  # m / (m/s) — visual length per unit velocity
+    for i in range(0, T, s):
+        rr.set_time_seconds("t", float(traj.t[i]))
+        rr.log(
+            entity_path,
+            rr.Arrows3D(
+                origins=[[float(traj.x[i]), float(traj.y[i]), com_height]],
+                vectors=[[float(traj.vx[i]) * scale, float(traj.vy[i]) * scale, 0.0]],
+                colors=[[46, 204, 113, 220]],
+            ),
         )
 
 
 def log_scalar_timeseries(traj, schedule) -> None:
     """Log all scalar channels time-indexed via rr.set_time_seconds."""
-    # Static SeriesLine annotations give each signal a colour and legend label.
     _styles: list[tuple[str, list[int], str]] = [
         ("trajectory/com/position/x", [230, 126, 34], "CoM x"),
         ("trajectory/com/position/y", [243, 156, 18], "CoM y"),
