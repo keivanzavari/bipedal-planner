@@ -32,7 +32,7 @@ class ThetaStarPlanner:
         grid = world.inflated_grid(self.inflation_margin)
 
         start_cell = world.world_to_cell(*start)
-        goal_cell  = world.world_to_cell(*goal)
+        goal_cell = world.world_to_cell(*goal)
 
         if not world.in_bounds(*start_cell) or grid[start_cell] == 1:
             raise ValueError(f"Start {start} is inside an obstacle or out of bounds.")

@@ -16,8 +16,12 @@ dev = [
     "pyright>=1.1",
     "pytest>=8.0",
     "pytest-cov>=5.0",
+    "pytest-timeout>=2.4.0",
     "ruff>=0.11.0",
 ]
+
+[tool.pytest.ini_options]
+timeout = 30
 
 [tool.pyright]
 pythonVersion = "3.10"

@@ -123,12 +123,8 @@ class TestRRTPlannerConfig:
             assert x1 == pytest.approx(x2) and y1 == pytest.approx(y2)
 
     def test_smooth_flag_reduces_waypoints(self, open_world: World):
-        raw = RRTPlanner(inflation_margin=0.0, seed=5, smooth=False).plan(
-            open_world, (0.5, 0.5), (9.5, 9.5)
-        )
-        smoothed = RRTPlanner(inflation_margin=0.0, seed=5, smooth=True).plan(
-            open_world, (0.5, 0.5), (9.5, 9.5)
-        )
+        raw = RRTPlanner(inflation_margin=0.0, seed=5, smooth=False).plan(open_world, (0.5, 0.5), (9.5, 9.5))
+        smoothed = RRTPlanner(inflation_margin=0.0, seed=5, smooth=True).plan(open_world, (0.5, 0.5), (9.5, 9.5))
         assert raw is not None and smoothed is not None
         assert len(smoothed) <= len(raw)
 

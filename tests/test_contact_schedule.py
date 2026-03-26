@@ -15,10 +15,7 @@ from stage2.contact_schedule import build_contact_schedule, support_polygon_at
 def _make_steps(n: int, dx: float = 0.3, dy: float = 0.0) -> list[Footstep]:
     """Create `n` footsteps along a straight line."""
     sides = ["L", "R"]
-    return [
-        Footstep(side=sides[i % 2], x=i * dx, y=dy if i % 2 == 0 else -dy, theta=0.0)
-        for i in range(n)
-    ]
+    return [Footstep(side=sides[i % 2], x=i * dx, y=dy if i % 2 == 0 else -dy, theta=0.0) for i in range(n)]
 
 
 # ---------------------------------------------------------------------------
@@ -84,9 +81,7 @@ class TestBuildContactSchedule:
                 curr_x = four_steps[i].x
                 lo, hi = min(prev_x, curr_x), max(prev_x, curr_x)
                 if lo < hi:
-                    assert lo <= schedule.zmp_x[k] <= hi, (
-                        f"ZMP x {schedule.zmp_x[k]:.4f} not in [{lo:.4f}, {hi:.4f}]"
-                    )
+                    assert lo <= schedule.zmp_x[k] <= hi, f"ZMP x {schedule.zmp_x[k]:.4f} not in [{lo:.4f}, {hi:.4f}]"
 
     def test_phase_indices_in_range(self, four_steps, schedule):
         assert schedule.phase.min() >= 0

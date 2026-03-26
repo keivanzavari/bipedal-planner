@@ -7,14 +7,14 @@ from stage1.planners.base import smooth_path
 
 # 8-connected neighbours: (d_row, d_col, cost)
 _NEIGHBOURS = [
-    (-1,  0, 1.0),
-    ( 1,  0, 1.0),
-    ( 0, -1, 1.0),
-    ( 0,  1, 1.0),
+    (-1, 0, 1.0),
+    (1, 0, 1.0),
+    (0, -1, 1.0),
+    (0, 1, 1.0),
     (-1, -1, 1.4142),
-    (-1,  1, 1.4142),
-    ( 1, -1, 1.4142),
-    ( 1,  1, 1.4142),
+    (-1, 1, 1.4142),
+    (1, -1, 1.4142),
+    (1, 1, 1.4142),
 ]
 
 
@@ -32,7 +32,7 @@ class AStarPlanner:
         grid = world.inflated_grid(self.inflation_margin)
 
         start_cell = world.world_to_cell(*start)
-        goal_cell  = world.world_to_cell(*goal)
+        goal_cell = world.world_to_cell(*goal)
 
         if not world.in_bounds(*start_cell) or grid[start_cell] == 1:
             raise ValueError(f"Start {start} is inside an obstacle or out of bounds.")

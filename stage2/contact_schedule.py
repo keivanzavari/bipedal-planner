@@ -15,18 +15,18 @@ from stage1.footstep import Footstep, _foot_corners
 
 @dataclass
 class ContactSchedule:
-    t:       np.ndarray   # (T,)  time in seconds
-    zmp_x:   np.ndarray   # (T,)  ZMP x reference
-    zmp_y:   np.ndarray   # (T,)  ZMP y reference
-    phase:   np.ndarray   # (T,)  footstep index active at this timestep
-    kind:    list[str]    # (T,)  'single' or 'double'
+    t: np.ndarray  # (T,)  time in seconds
+    zmp_x: np.ndarray  # (T,)  ZMP x reference
+    zmp_y: np.ndarray  # (T,)  ZMP y reference
+    phase: np.ndarray  # (T,)  footstep index active at this timestep
+    kind: list[str]  # (T,)  'single' or 'double'
 
 
 def build_contact_schedule(
     footsteps: list[Footstep],
-    t_single:  float = 0.4,    # single support duration (s)
-    t_double:  float = 0.1,    # double support duration (s)
-    dt:        float = 0.005,  # timestep (s)
+    t_single: float = 0.4,  # single support duration (s)
+    t_double: float = 0.1,  # double support duration (s)
+    dt: float = 0.005,  # timestep (s)
 ) -> ContactSchedule:
     """
     Build a time-stamped ZMP reference trajectory from an ordered footstep list.
@@ -46,25 +46,28 @@ def build_contact_schedule(
     t = 0.0
 
     for i, fs in enumerate(footsteps):
-
         # --- Double support: ZMP slides from previous foot to current ---
         if i > 0:
             prev = footsteps[i - 1]
             n_ds = max(1, round(t_double / dt))
             for j in range(n_ds):
                 alpha = j / n_ds
-                ts.append(t);  t += dt
+                ts.append(t)
+                t += dt
                 zx.append(prev.x + alpha * (fs.x - prev.x))
                 zy.append(prev.y + alpha * (fs.y - prev.y))
-                ph.append(i);  kn.append("double")
+                ph.append(i)
+                kn.append("double")
 
         # --- Single support: ZMP held at current foot centre ---
         n_ss = max(1, round(t_single / dt))
         for _ in range(n_ss):
-            ts.append(t);  t += dt
+            ts.append(t)
+            t += dt
             zx.append(fs.x)
             zy.append(fs.y)
-            ph.append(i);  kn.append("single")
+            ph.append(i)
+            kn.append("single")
 
     return ContactSchedule(
         t=np.array(ts),
@@ -80,7 +83,7 @@ def support_polygon_at(
     k: int,
     footsteps: list[Footstep],
     foot_length: float = 0.16,
-    foot_width:  float = 0.08,
+    foot_width: float = 0.08,
 ) -> np.ndarray:
     """
     Return the (N, 2) support polygon at timestep k.
@@ -91,14 +94,20 @@ def support_polygon_at(
 
     i = int(schedule.phase[k])
     corners = _foot_corners(
-        footsteps[i].x, footsteps[i].y, footsteps[i].theta,
-        foot_length, foot_width,
+        footsteps[i].x,
+        footsteps[i].y,
+        footsteps[i].theta,
+        foot_length,
+        foot_width,
     )
 
     if schedule.kind[k] == "double" and i > 0:
         prev_corners = _foot_corners(
-            footsteps[i - 1].x, footsteps[i - 1].y, footsteps[i - 1].theta,
-            foot_length, foot_width,
+            footsteps[i - 1].x,
+            footsteps[i - 1].y,
+            footsteps[i - 1].theta,
+            foot_length,
+            foot_width,
         )
         pts = np.vstack([corners, prev_corners])
         hull = ConvexHull(pts)

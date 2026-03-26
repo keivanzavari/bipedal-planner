@@ -4,9 +4,9 @@ from stage1.planners.theta_star import ThetaStarPlanner
 from stage1.planners.rrt import RRTPlanner
 
 PLANNERS: dict[str, type] = {
-    "astar":      AStarPlanner,
+    "astar": AStarPlanner,
     "theta_star": ThetaStarPlanner,
-    "rrt":        RRTPlanner,
+    "rrt": RRTPlanner,
 }
 
 

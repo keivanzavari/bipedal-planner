@@ -64,10 +64,15 @@ class TestConvexHullPolygon:
 
     def test_interior_point_excluded(self):
         """A point strictly inside a square must not appear in its hull."""
-        pts = np.array([
-            [0.0, 0.0], [2.0, 0.0], [2.0, 2.0], [0.0, 2.0],
-            [1.0, 1.0],  # interior
-        ])
+        pts = np.array(
+            [
+                [0.0, 0.0],
+                [2.0, 0.0],
+                [2.0, 2.0],
+                [0.0, 2.0],
+                [1.0, 1.0],  # interior
+            ]
+        )
         hull = _convex_hull_polygon(pts)
         assert len(hull) == 4
 
@@ -119,7 +124,7 @@ class TestCheckStability:
         """CoM midpoint between two nearby feet — well inside double-support polygon."""
         foot_l, foot_w = 0.16, 0.08
         s0 = _make_footstep(0.0, -0.1, "L")
-        s1 = _make_footstep(0.0,  0.1, "R")
+        s1 = _make_footstep(0.0, 0.1, "R")
         phases = check_stability([s0, s1], foot_length=foot_l, foot_width=foot_w)
         double_phases = [p for p in phases if p.kind == "double"]
         assert len(double_phases) > 0

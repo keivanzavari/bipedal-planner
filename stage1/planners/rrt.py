@@ -16,18 +16,18 @@ class RRTPlanner:
     def __init__(
         self,
         inflation_margin: float = 0.25,
-        max_iterations:   int   = 5000,
-        step_size:        float = 0.3,
-        goal_bias:        float = 0.1,
-        smooth:           bool  = True,
-        seed:             int | None = None,
+        max_iterations: int = 5000,
+        step_size: float = 0.3,
+        goal_bias: float = 0.1,
+        smooth: bool = True,
+        seed: int | None = None,
     ):
         self.inflation_margin = inflation_margin
-        self.max_iterations   = max_iterations
-        self.step_size        = step_size
-        self.goal_bias        = goal_bias
-        self.smooth           = smooth
-        self._rng             = np.random.default_rng(seed)
+        self.max_iterations = max_iterations
+        self.step_size = step_size
+        self.goal_bias = goal_bias
+        self.smooth = smooth
+        self._rng = np.random.default_rng(seed)
 
     def plan(
         self,
@@ -57,8 +57,8 @@ class RRTPlanner:
             raise ValueError(f"Goal {goal} is inside an obstacle or out of bounds.")
 
         # Tree: list of nodes, parent index stored separately
-        nodes   = [np.array(start)]
-        parents = [-1]          # root has no parent
+        nodes = [np.array(start)]
+        parents = [-1]  # root has no parent
 
         goal_arr = np.array(goal)
 
@@ -67,18 +67,20 @@ class RRTPlanner:
             if self._rng.random() < self.goal_bias:
                 sample = goal_arr.copy()
             else:
-                sample = np.array([
-                    self._rng.uniform(0, world.width),
-                    self._rng.uniform(0, world.height),
-                ])
+                sample = np.array(
+                    [
+                        self._rng.uniform(0, world.width),
+                        self._rng.uniform(0, world.height),
+                    ]
+                )
 
             # Nearest node in the tree
-            dists   = [np.linalg.norm(n - sample) for n in nodes]
+            dists = [np.linalg.norm(n - sample) for n in nodes]
             nearest = int(np.argmin(dists))
 
             # Steer toward sample by at most step_size
             direction = sample - nodes[nearest]
-            dist      = np.linalg.norm(direction)
+            dist = np.linalg.norm(direction)
             if dist == 0:
                 continue
             new_node = nodes[nearest] + direction / dist * min(dist, self.step_size)
@@ -102,7 +104,7 @@ class RRTPlanner:
 
 def _reconstruct(nodes, parents):
     path = []
-    idx  = len(nodes) - 1
+    idx = len(nodes) - 1
     while idx != -1:
         path.append(tuple(nodes[idx]))
         idx = parents[idx]

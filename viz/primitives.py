@@ -187,16 +187,16 @@ def log_scalar_timeseries(traj, schedule) -> None:
     """Log all scalar channels time-indexed via rr.set_time_seconds."""
     # Static SeriesLine annotations give each signal a colour and legend label.
     _styles: list[tuple[str, list[int], str]] = [
-        ("trajectory/com/position/x",     [230, 126,  34], "CoM x"),
-        ("trajectory/com/position/y",     [243, 156,  18], "CoM y"),
-        ("trajectory/zmp/x",              [155,  89, 182], "ZMP x"),
-        ("trajectory/zmp/y",              [142,  68, 173], "ZMP y"),
-        ("trajectory/zmp_ref/x",          [149, 165, 166], "ZMP ref x"),
-        ("trajectory/zmp_ref/y",          [127, 140, 141], "ZMP ref y"),
-        ("trajectory/com/velocity/x",     [ 46, 204, 113], "vel x"),
-        ("trajectory/com/velocity/y",     [ 39, 174,  96], "vel y"),
-        ("trajectory/com/acceleration/x", [ 52, 152, 219], "acc x"),
-        ("trajectory/com/acceleration/y", [ 41, 128, 185], "acc y"),
+        ("trajectory/com/position/x", [230, 126, 34], "CoM x"),
+        ("trajectory/com/position/y", [243, 156, 18], "CoM y"),
+        ("trajectory/zmp/x", [155, 89, 182], "ZMP x"),
+        ("trajectory/zmp/y", [142, 68, 173], "ZMP y"),
+        ("trajectory/zmp_ref/x", [149, 165, 166], "ZMP ref x"),
+        ("trajectory/zmp_ref/y", [127, 140, 141], "ZMP ref y"),
+        ("trajectory/com/velocity/x", [46, 204, 113], "vel x"),
+        ("trajectory/com/velocity/y", [39, 174, 96], "vel y"),
+        ("trajectory/com/acceleration/x", [52, 152, 219], "acc x"),
+        ("trajectory/com/acceleration/y", [41, 128, 185], "acc y"),
     ]
     for path, color, name in _styles:
         rr.log(path, rr.SeriesLine(color=color, name=name), static=True)
@@ -206,16 +206,16 @@ def log_scalar_timeseries(traj, schedule) -> None:
 
     for i in range(0, T, s):
         rr.set_time_seconds("t", float(traj.t[i]))
-        rr.log("trajectory/com/position/x",     rr.Scalar(float(traj.x[i])))
-        rr.log("trajectory/com/position/y",     rr.Scalar(float(traj.y[i])))
-        rr.log("trajectory/com/velocity/x",     rr.Scalar(float(traj.vx[i])))
-        rr.log("trajectory/com/velocity/y",     rr.Scalar(float(traj.vy[i])))
+        rr.log("trajectory/com/position/x", rr.Scalar(float(traj.x[i])))
+        rr.log("trajectory/com/position/y", rr.Scalar(float(traj.y[i])))
+        rr.log("trajectory/com/velocity/x", rr.Scalar(float(traj.vx[i])))
+        rr.log("trajectory/com/velocity/y", rr.Scalar(float(traj.vy[i])))
         rr.log("trajectory/com/acceleration/x", rr.Scalar(float(traj.ax[i])))
         rr.log("trajectory/com/acceleration/y", rr.Scalar(float(traj.ay[i])))
-        rr.log("trajectory/zmp/x",              rr.Scalar(float(traj.zmp_x[i])))
-        rr.log("trajectory/zmp/y",              rr.Scalar(float(traj.zmp_y[i])))
-        rr.log("trajectory/zmp_ref/x",          rr.Scalar(float(schedule.zmp_x[i])))
-        rr.log("trajectory/zmp_ref/y",          rr.Scalar(float(schedule.zmp_y[i])))
+        rr.log("trajectory/zmp/x", rr.Scalar(float(traj.zmp_x[i])))
+        rr.log("trajectory/zmp/y", rr.Scalar(float(traj.zmp_y[i])))
+        rr.log("trajectory/zmp_ref/x", rr.Scalar(float(schedule.zmp_x[i])))
+        rr.log("trajectory/zmp_ref/y", rr.Scalar(float(schedule.zmp_y[i])))
 
 
 def log_phase_transitions(entity_path: str, schedule) -> None:

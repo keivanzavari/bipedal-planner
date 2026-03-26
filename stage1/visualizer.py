@@ -212,4 +212,3 @@ def plot_stability(
     ]
     existing_handles, existing_labels = ax.get_legend_handles_labels()
     ax.legend(handles=existing_handles + handles, loc="upper left")
-

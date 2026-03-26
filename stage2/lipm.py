@@ -16,8 +16,8 @@ from dataclasses import dataclass
 
 @dataclass
 class LIPMParams:
-    h:  float = 0.80   # CoM height (m)
-    g:  float = 9.81   # gravity (m/s²)
+    h: float = 0.80  # CoM height (m)
+    g: float = 9.81  # gravity (m/s²)
     dt: float = 0.005  # timestep (s)
 
 
@@ -29,14 +29,16 @@ def lipm_matrices(params: LIPMParams) -> tuple[np.ndarray, np.ndarray, np.ndarra
     p[k]   = C @ s[k]
     """
     dt = params.dt
-    h  = params.h
-    g  = params.g
+    h = params.h
+    g = params.g
 
-    A = np.array([
-        [1.0,  dt,  0.5 * dt**2],
-        [0.0, 1.0,           dt],
-        [0.0, 0.0,          1.0],
-    ])
+    A = np.array(
+        [
+            [1.0, dt, 0.5 * dt**2],
+            [0.0, 1.0, dt],
+            [0.0, 0.0, 1.0],
+        ]
+    )
     B = np.array([dt**3 / 6.0, dt**2 / 2.0, dt])
     C = np.array([1.0, 0.0, -h / g])
 

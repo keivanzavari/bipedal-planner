@@ -40,8 +40,8 @@ def world_with_gap() -> World:
         height=10.0,
         resolution=0.1,
         obstacles=[
-            Rect(4.0, 0.0, 0.5, 4.5),   # lower half of wall
-            Rect(4.0, 5.5, 0.5, 4.5),   # upper half of wall
+            Rect(4.0, 0.0, 0.5, 4.5),  # lower half of wall
+            Rect(4.0, 5.5, 0.5, 4.5),  # upper half of wall
         ],
     )
 
@@ -53,7 +53,7 @@ def world_with_gap() -> World:
 
 
 GRID_PLANNERS = [
-    pytest.param(AStarPlanner,    id="astar"),
+    pytest.param(AStarPlanner, id="astar"),
     pytest.param(ThetaStarPlanner, id="theta_star"),
 ]
 
@@ -123,7 +123,9 @@ class TestAStarPlanner:
     def test_inflation_blocks_path_near_obstacle(self):
         """With large inflation, a narrow-gap world should become impassable."""
         world = World(
-            width=10.0, height=10.0, resolution=0.1,
+            width=10.0,
+            height=10.0,
+            resolution=0.1,
             obstacles=[
                 Rect(4.0, 0.0, 0.5, 4.8),
                 Rect(4.0, 5.2, 0.5, 4.8),
@@ -142,12 +144,8 @@ class TestAStarPlanner:
 class TestThetaStarPlanner:
     def test_produces_fewer_waypoints_than_astar(self, open_world: World):
         """Theta* produces any-angle paths, so waypoint count should be ≤ A*'s."""
-        astar_path = AStarPlanner(inflation_margin=0.0, smooth=False).plan(
-            open_world, (0.5, 0.5), (9.5, 9.5)
-        )
-        theta_path = ThetaStarPlanner(inflation_margin=0.0, smooth=False).plan(
-            open_world, (0.5, 0.5), (9.5, 9.5)
-        )
+        astar_path = AStarPlanner(inflation_margin=0.0, smooth=False).plan(open_world, (0.5, 0.5), (9.5, 9.5))
+        theta_path = ThetaStarPlanner(inflation_margin=0.0, smooth=False).plan(open_world, (0.5, 0.5), (9.5, 9.5))
         assert astar_path is not None and theta_path is not None
         assert len(theta_path) <= len(astar_path)
 
@@ -227,11 +225,13 @@ class TestPlannerRegistry:
 
     def test_get_planner_returns_theta_star(self):
         from stage1.planners.theta_star import ThetaStarPlanner as _T
+
         p = get_planner("theta_star")
         assert isinstance(p, _T)
 
     def test_get_planner_returns_rrt(self):
         from stage1.planners.rrt import RRTPlanner
+
         p = get_planner("rrt")
         assert isinstance(p, RRTPlanner)
 

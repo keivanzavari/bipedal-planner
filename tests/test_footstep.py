@@ -114,6 +114,7 @@ class TestFootIsFree:
     @pytest.fixture()
     def occupied_world(self) -> World:
         from stage1.world import Rect
+
         return World(width=5.0, height=5.0, resolution=0.05, obstacles=[Rect(2.0, 2.0, 1.0, 1.0)])
 
     def test_free_grid_returns_true(self, free_world: World):

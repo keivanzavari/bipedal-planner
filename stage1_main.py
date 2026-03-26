@@ -23,11 +23,11 @@ from stage1.world import WORLDS, World
 # ------------------------------------------------------------------
 
 INFLATION_MARGIN = 0.25
-FOOT_CLEARANCE   = 0.05
-STEP_LENGTH      = 0.25
-STEP_WIDTH       = 0.10
-FOOT_LENGTH      = 0.16
-FOOT_WIDTH       = 0.08
+FOOT_CLEARANCE = 0.05
+STEP_LENGTH = 0.25
+STEP_WIDTH = 0.10
+FOOT_LENGTH = 0.16
+FOOT_WIDTH = 0.08
 
 # ------------------------------------------------------------------
 # Main
@@ -53,7 +53,8 @@ def run(world: World, start: tuple, goal: tuple, planner_name: str = "astar", vi
     # Layer 2 — Footstep planning
     print("\n[2/3] Planning footsteps...")
     footsteps = plan_footsteps(
-        path, world,
+        path,
+        world,
         step_length=STEP_LENGTH,
         step_width=STEP_WIDTH,
         foot_length=FOOT_LENGTH,
@@ -64,7 +65,7 @@ def run(world: World, start: tuple, goal: tuple, planner_name: str = "astar", vi
 
     # Layer 3 — Stability check
     print("\n[3/3] Checking stability...")
-    phases  = check_stability(footsteps, foot_length=FOOT_LENGTH, foot_width=FOOT_WIDTH)
+    phases = check_stability(footsteps, foot_length=FOOT_LENGTH, foot_width=FOOT_WIDTH)
     summary = stability_summary(phases)
     print(f"  Stable: {summary['stable']} / {summary['total_phases']} phases")
 
@@ -72,8 +73,14 @@ def run(world: World, start: tuple, goal: tuple, planner_name: str = "astar", vi
     print("\nRendering...")
     if viz == "rerun":
         from viz import visualize_stage1
+
         visualize_stage1(
-            world, start, goal, path, footsteps, phases,
+            world,
+            start,
+            goal,
+            path,
+            footsteps,
+            phases,
             foot_length=FOOT_LENGTH,
             foot_width=FOOT_WIDTH,
             inflation_margin=INFLATION_MARGIN,
@@ -81,12 +88,13 @@ def run(world: World, start: tuple, goal: tuple, planner_name: str = "astar", vi
         )
     else:
         import matplotlib
+
         matplotlib.use("TkAgg")
         import matplotlib.pyplot as plt
         from stage1.visualizer import plot_footsteps, plot_path, plot_stability, plot_world
 
         inflated = world.inflated_grid(INFLATION_MARGIN)
-        fig, ax  = plt.subplots(figsize=(12, 9))
+        fig, ax = plt.subplots(figsize=(12, 9))
         plot_world(world, start=start, goal=goal, inflated_grid=inflated, ax=ax, show=False)
         plot_path(path, ax, color="#3498db", label=planner_name, show_waypoints=True)
         plot_footsteps(footsteps, ax, foot_length=FOOT_LENGTH, foot_width=FOOT_WIDTH)
@@ -98,9 +106,9 @@ def run(world: World, start: tuple, goal: tuple, planner_name: str = "astar", vi
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("world",   nargs="?", default="demo",   choices=list(WORLDS))
+    parser.add_argument("world", nargs="?", default="demo", choices=list(WORLDS))
     parser.add_argument("--planner", default="astar", choices=list(PLANNERS))
-    parser.add_argument("--viz",     default="matplotlib", choices=["matplotlib", "rerun"])
+    parser.add_argument("--viz", default="matplotlib", choices=["matplotlib", "rerun"])
     args = parser.parse_args()
 
     world, start, goal = WORLDS[args.world]()

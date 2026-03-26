@@ -33,10 +33,7 @@ def gains(default_params: LIPMParams) -> PreviewGains:
 
 def _make_steps(n: int, dx: float = 0.25, dy: float = 0.1) -> list[Footstep]:
     sides = ["L", "R"]
-    return [
-        Footstep(side=sides[i % 2], x=i * dx, y=dy if i % 2 == 0 else -dy, theta=0.0)
-        for i in range(n)
-    ]
+    return [Footstep(side=sides[i % 2], x=i * dx, y=dy if i % 2 == 0 else -dy, theta=0.0) for i in range(n)]
 
 
 # ---------------------------------------------------------------------------
@@ -140,8 +137,16 @@ class TestRunPreviewControl:
         assert len(trajectory.zmp_y) == T
 
     def test_trajectory_finite(self, trajectory: CoMTrajectory):
-        for arr in (trajectory.x, trajectory.y, trajectory.vx, trajectory.vy,
-                    trajectory.ax, trajectory.ay, trajectory.zmp_x, trajectory.zmp_y):
+        for arr in (
+            trajectory.x,
+            trajectory.y,
+            trajectory.vx,
+            trajectory.vy,
+            trajectory.ax,
+            trajectory.ay,
+            trajectory.zmp_x,
+            trajectory.zmp_y,
+        ):
             assert np.all(np.isfinite(arr)), "Trajectory contains non-finite values"
 
     def test_zmp_tracking_error_bounded(self, schedule_and_steps, trajectory: CoMTrajectory):
