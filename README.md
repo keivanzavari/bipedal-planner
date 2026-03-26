@@ -4,6 +4,8 @@ A 2-D bipedal robot path planning and trajectory optimisation demo.
 Given an occupancy-grid world the system plans a collision-free walking path,
 generates foot placements, and computes a dynamically-balanced CoM trajectory.
 
+![image](docs/image.png)
+
 ## Architecture
 
 ```text
