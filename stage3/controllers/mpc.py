@@ -39,7 +39,7 @@ from stage1.world import SlipperyZone
 from stage2.contact_schedule import ContactSchedule
 from stage2.lipm import LIPMParams, lipm_matrices
 from stage2.preview_controller import CoMTrajectory
-from stage2.traj_optimizer import _compute_zmp_bounds, build_propagation_matrix, free_response
+from stage2.traj_optimizer import build_propagation_matrix, free_response
 
 
 class MPCController:
@@ -65,13 +65,13 @@ class MPCController:
         # Populated by reset()
         self._A: np.ndarray | None = None
         self._C: np.ndarray | None = None
-        self._P: np.ndarray | None = None          # (N, N) ZMP propagation matrix
+        self._P: np.ndarray | None = None  # (N, N) ZMP propagation matrix
         self._K_terminal: np.ndarray | None = None  # (N, 3) precomputed terminal gradient
-        self._ref_x: np.ndarray | None = None       # (T, 3) reference state
+        self._ref_x: np.ndarray | None = None  # (T, 3) reference state
         self._ref_y: np.ndarray | None = None
-        self._u_ff_x: np.ndarray | None = None      # (T,) feedforward jerks
+        self._u_ff_x: np.ndarray | None = None  # (T,) feedforward jerks
         self._u_ff_y: np.ndarray | None = None
-        self._zmp_ref_x: np.ndarray | None = None   # (T,) reference ZMP
+        self._zmp_ref_x: np.ndarray | None = None  # (T,) reference ZMP
         self._zmp_ref_y: np.ndarray | None = None
         self._expanded_lb_x: np.ndarray | None = None  # (T,) expanded ZMP bounds
         self._expanded_ub_x: np.ndarray | None = None
@@ -112,10 +112,8 @@ class MPCController:
         # DARE terminal cost: solve P_∞ for the infinite-horizon ZMP problem
         #   min Σ [Q_e * (C e[j])² + R * du[j]²]
         # ----------------------------------------------------------------
-        Q_state = self._Q_e * np.outer(C, C)      # 3×3
-        P_inf = scipy.linalg.solve_discrete_are(
-            A, B.reshape(-1, 1), Q_state, np.array([[self._R]])
-        )                                           # 3×3
+        Q_state = self._Q_e * np.outer(C, C)  # 3×3
+        P_inf = scipy.linalg.solve_discrete_are(A, B.reshape(-1, 1), Q_state, np.array([[self._R]]))  # 3×3
 
         # Γ[:,j] = A^{N-1-j} B  (effect of du[j] on e[N])
         Gamma = np.empty((3, N))
@@ -127,7 +125,7 @@ class MPCController:
 
         # Precompute terminal gradient: K_terminal = Γ' P_∞ A^N  (N×3)
         A_N = np.linalg.matrix_power(A, N)
-        self._K_terminal = Gamma.T @ P_inf @ A_N   # (N, 3)
+        self._K_terminal = Gamma.T @ P_inf @ A_N  # (N, 3)
 
         # ----------------------------------------------------------------
         # ZMP propagation matrix and Hessian
@@ -136,11 +134,7 @@ class MPCController:
         self._P = P
 
         # H = 2 * (Q_e * P'P  +  R * I  +  Γ' P_∞ Γ)   [fixed]
-        H_dense = 2.0 * (
-            self._Q_e * P.T @ P
-            + self._R * np.eye(N)
-            + Gamma.T @ P_inf @ Gamma
-        )
+        H_dense = 2.0 * (self._Q_e * P.T @ P + self._R * np.eye(N) + Gamma.T @ P_inf @ Gamma)
         H_sp = sp.csc_matrix(np.triu(H_dense))
 
         # ----------------------------------------------------------------
@@ -148,9 +142,12 @@ class MPCController:
         # Slippery zones shrink the foot polygon, tightening the bounds.
         # ----------------------------------------------------------------
         from stage3.simulator import _slippery_zmp_bounds
+
         lb_x, ub_x, lb_y, ub_y = _slippery_zmp_bounds(
-            schedule, self._footsteps,
-            self._foot_length, self._foot_width,
+            schedule,
+            self._footsteps,
+            self._foot_length,
+            self._foot_width,
             self._slippery_zones,
         )
         _eps = 0.001

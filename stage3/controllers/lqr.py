@@ -30,10 +30,10 @@ class LQRController:
         self._R = R
         # Populated by reset()
         self._K_state: np.ndarray | None = None  # (3,) — state-error gain
-        self._ref_x: np.ndarray | None = None    # (T, 3)
-        self._ref_y: np.ndarray | None = None    # (T, 3)
-        self._u_ff_x: np.ndarray | None = None   # (T,)
-        self._u_ff_y: np.ndarray | None = None   # (T,)
+        self._ref_x: np.ndarray | None = None  # (T, 3)
+        self._ref_y: np.ndarray | None = None  # (T, 3)
+        self._u_ff_x: np.ndarray | None = None  # (T,)
+        self._u_ff_y: np.ndarray | None = None  # (T,)
 
     def reset(self, traj: CoMTrajectory, schedule: ContactSchedule, params: LIPMParams) -> None:
         A, B, C = lipm_matrices(params)
@@ -41,10 +41,12 @@ class LQRController:
 
         # --- Augmented system (same as preview_controller.compute_gains) ---
         n = A.shape[0]  # 3
-        A_aug = np.block([
-            [np.ones((1, 1)), (C @ A).reshape(1, -1)],
-            [np.zeros((n, 1)), A],
-        ])  # (4, 4)
+        A_aug = np.block(
+            [
+                [np.ones((1, 1)), (C @ A).reshape(1, -1)],
+                [np.zeros((n, 1)), A],
+            ]
+        )  # (4, 4)
         B_aug = np.concatenate([[C @ B], B])  # (4,)
 
         Q_aug = np.zeros((n + 1, n + 1))
@@ -60,8 +62,8 @@ class LQRController:
 
         # --- Reference arrays ---
         T = len(traj.t)
-        self._ref_x = np.column_stack([traj.x, traj.vx, traj.ax])   # (T, 3)
-        self._ref_y = np.column_stack([traj.y, traj.vy, traj.ay])   # (T, 3)
+        self._ref_x = np.column_stack([traj.x, traj.vx, traj.ax])  # (T, 3)
+        self._ref_y = np.column_stack([traj.y, traj.vy, traj.ay])  # (T, 3)
 
         # Forward finite-difference jerk feedforward; zero at last step
         self._u_ff_x = np.empty(T)

@@ -1,3 +1,4 @@
+# ruff: noqa
 """Debug script: investigate why MPC QP reports primal infeasible with slippery zones."""
 
 import numpy as np
@@ -22,8 +23,13 @@ world, start, goal = WORLDS["demo"]()
 planner = get_planner("astar", inflation_margin=0.25)
 path = planner.plan(world, start, goal)
 footsteps = plan_footsteps(
-    path, world, step_length=0.25, step_width=0.10,
-    foot_length=0.16, foot_width=0.08, foot_clearance=0.05,
+    path,
+    world,
+    step_length=0.25,
+    step_width=0.10,
+    foot_length=0.16,
+    foot_width=0.08,
+    foot_clearance=0.05,
 )
 schedule = build_contact_schedule(footsteps, t_single=0.4, t_double=0.1, dt=PARAMS.dt)
 gains = compute_gains(PARAMS, Q_e=1.0, R=1e-6, N_preview=200)
@@ -62,8 +68,8 @@ H_sp = sp.csc_matrix(np.triu(H_dense))
 A_sp = sp.csc_matrix(P_mat)
 
 print(f"P_mat shape: {P_mat.shape}")
-print(f"P_mat rank: {np.linalg.matrix_rank(P_mat)} (expected {N-1} since first row is 0)")
-print(f"P_mat first row all-zero: {np.allclose(P_mat[0,:], 0)}")
+print(f"P_mat rank: {np.linalg.matrix_rank(P_mat)} (expected {N - 1} since first row is 0)")
+print(f"P_mat first row all-zero: {np.allclose(P_mat[0, :], 0)}")
 print()
 
 # ------------------------------------------------------------------
@@ -96,7 +102,7 @@ print(f"e = {e}")
 print(f"zfx[:5] = {zfx[:5]}")
 print(f"l[:5] = {lx[:5]}")
 print(f"u[:5] = {ux[:5]}")
-print(f"bound width (u-l)[:5] = {(ux-lx)[:5]}")
+print(f"bound width (u-l)[:5] = {(ux - lx)[:5]}")
 print(f"All l <= u: {np.all(lx <= ux)}")
 print()
 
@@ -105,8 +111,7 @@ print()
 # ------------------------------------------------------------------
 print("--- Fresh solver ---")
 solver_fresh = osqp.OSQP()
-solver_fresh.setup(H_sp, q_x, A_sp, lx, ux,
-                   verbose=False, eps_abs=1e-5, eps_rel=1e-5, max_iter=4000)
+solver_fresh.setup(H_sp, q_x, A_sp, lx, ux, verbose=False, eps_abs=1e-5, eps_rel=1e-5, max_iter=4000)
 res = solver_fresh.solve()
 print(f"status: {res.info.status!r}, x[0]: {res.x[0] if res.x is not None else None}")
 
@@ -115,8 +120,9 @@ print(f"status: {res.info.status!r}, x[0]: {res.x[0] if res.x is not None else N
 # ------------------------------------------------------------------
 print("--- Unconstrained solve ---")
 solver_uncons = osqp.OSQP()
-solver_uncons.setup(H_sp, q_x, A_sp, np.full(N, -1e9), np.full(N, 1e9),
-                    verbose=False, eps_abs=1e-5, eps_rel=1e-5, max_iter=4000)
+solver_uncons.setup(
+    H_sp, q_x, A_sp, np.full(N, -1e9), np.full(N, 1e9), verbose=False, eps_abs=1e-5, eps_rel=1e-5, max_iter=4000
+)
 res_unc = solver_uncons.solve()
 print(f"status: {res_unc.info.status!r}, x[0]: {res_unc.x[0]:.6f}")
 print(f"Unconstrained zmp_err = P@du + zfx (first 5): {(P_mat @ res_unc.x + zfx)[:5]}")
@@ -127,8 +133,9 @@ print(f"Unconstrained zmp_err = P@du + zfx (first 5): {(P_mat @ res_unc.x + zfx)
 print()
 print("--- Warm-start chain (simulating actual MPC) ---")
 solver_ws = osqp.OSQP()
-solver_ws.setup(H_sp, np.zeros(N), A_sp, np.full(N, -1e9), np.full(N, 1e9),
-                verbose=False, eps_abs=1e-5, eps_rel=1e-5, max_iter=4000)
+solver_ws.setup(
+    H_sp, np.zeros(N), A_sp, np.full(N, -1e9), np.full(N, 1e9), verbose=False, eps_abs=1e-5, eps_rel=1e-5, max_iter=4000
+)
 
 state_x2 = np.array([traj.x[0], traj.vx[0], traj.ax[0]])
 rng2 = np.random.default_rng(0)

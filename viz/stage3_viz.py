@@ -57,8 +57,11 @@ def visualize_stage3(
     # Static geometry
     log_world("world/occupancy", world)
     log_foot_polygons(
-        "planning/footsteps/left", "planning/footsteps/right",
-        footsteps, foot_length, foot_width,
+        "planning/footsteps/left",
+        "planning/footsteps/right",
+        footsteps,
+        foot_length,
+        foot_width,
     )
     if slippery_zones:
         for i, zone in enumerate(slippery_zones):
@@ -79,7 +82,12 @@ def visualize_stage3(
 
     # Animated support polygon (shrinks in slippery zones)
     log_active_support_polygon(
-        "tracking/support_polygon", result, schedule, footsteps, foot_length, foot_width,
+        "tracking/support_polygon",
+        result,
+        schedule,
+        footsteps,
+        foot_length,
+        foot_width,
     )
 
     # Scalar timeseries: error, ZMP vs bounds, friction

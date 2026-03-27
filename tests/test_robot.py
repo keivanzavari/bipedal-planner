@@ -14,7 +14,6 @@ from robot.kinematics import (
 from stage1.footstep import Footstep
 from stage2.contact_schedule import build_contact_schedule
 
-
 # ---------------------------------------------------------------------------
 # Shared fixtures
 # ---------------------------------------------------------------------------
@@ -115,8 +114,7 @@ class TestTwoLinkKnee:
         """With a vertical leg and forward=[1,0,0], knee x must be > hip x."""
         hip = np.array([0.0, 0.0, 0.75])
         foot = np.array([0.0, 0.0, 0.0])
-        knee = two_link_knee(hip, foot, cfg.upper_leg, cfg.lower_leg,
-                             forward=np.array([1.0, 0.0, 0.0]))
+        knee = two_link_knee(hip, foot, cfg.upper_leg, cfg.lower_leg, forward=np.array([1.0, 0.0, 0.0]))
         assert knee[0] > hip[0]
 
     def test_tilted_leg_preserves_lengths(self, cfg):
@@ -130,23 +128,23 @@ class TestTwoLinkKnee:
     def test_clamped_reach_does_not_raise(self, cfg):
         """When foot is farther than l1+l2, the function clamps and returns a point."""
         hip = np.array([0.0, 0.0, 0.0])
-        foot = np.array([2.0, 0.0, 0.0])   # well beyond max reach of 0.8 m
+        foot = np.array([2.0, 0.0, 0.0])  # well beyond max reach of 0.8 m
         knee = two_link_knee(hip, foot, cfg.upper_leg, cfg.lower_leg)
         assert knee.shape == (3,)
         assert np.all(np.isfinite(knee))
 
     def test_symmetric_legs_mirror_in_y(self, cfg):
         """Left and right hips at ±y should produce mirrored knee positions."""
-        hip_l = np.array([0.0,  0.10, 0.75])
+        hip_l = np.array([0.0, 0.10, 0.75])
         hip_r = np.array([0.0, -0.10, 0.75])
-        foot_l = np.array([0.1,  0.10, 0.0])
+        foot_l = np.array([0.1, 0.10, 0.0])
         foot_r = np.array([0.1, -0.10, 0.0])
         fwd = np.array([1.0, 0.0, 0.0])
         knee_l = two_link_knee(hip_l, foot_l, cfg.upper_leg, cfg.lower_leg, fwd)
         knee_r = two_link_knee(hip_r, foot_r, cfg.upper_leg, cfg.lower_leg, fwd)
-        assert knee_l[0] == pytest.approx(knee_r[0], abs=1e-6)   # same x
+        assert knee_l[0] == pytest.approx(knee_r[0], abs=1e-6)  # same x
         assert knee_l[1] == pytest.approx(-knee_r[1], abs=1e-6)  # mirrored y
-        assert knee_l[2] == pytest.approx(knee_r[2], abs=1e-6)   # same z
+        assert knee_l[2] == pytest.approx(knee_r[2], abs=1e-6)  # same z
 
 
 # ---------------------------------------------------------------------------
@@ -176,9 +174,7 @@ class TestComputePhaseProgress:
                 curr_phase = int(schedule.phase[k])
                 curr_kind = schedule.kind[k]
                 if (curr_phase, curr_kind) != (prev_phase, prev_kind):
-                    assert phase_alpha[k] == pytest.approx(0.0), (
-                        f"Phase transition at k={k}: α should reset to 0"
-                    )
+                    assert phase_alpha[k] == pytest.approx(0.0), f"Phase transition at k={k}: α should reset to 0"
 
     def test_alpha_monotone_within_phase(self, schedule_and_steps, phase_alpha):
         """α must be strictly increasing within each phase segment."""
@@ -186,8 +182,7 @@ class TestComputePhaseProgress:
         T = len(schedule.t)
         for k in range(1, T):
             same_phase = (
-                int(schedule.phase[k]) == int(schedule.phase[k - 1])
-                and schedule.kind[k] == schedule.kind[k - 1]
+                int(schedule.phase[k]) == int(schedule.phase[k - 1]) and schedule.kind[k] == schedule.kind[k - 1]
             )
             if same_phase:
                 assert phase_alpha[k] > phase_alpha[k - 1]
@@ -205,9 +200,7 @@ class TestActiveFeetAt:
         assert left.shape == (3,)
         assert right.shape == (3,)
 
-    def test_stance_foot_at_zero_z_during_single_support(
-        self, schedule_and_steps, phase_alpha, cfg
-    ):
+    def test_stance_foot_at_zero_z_during_single_support(self, schedule_and_steps, phase_alpha, cfg):
         """The planted foot must be on the ground (z=0) during single support."""
         schedule, footsteps = schedule_and_steps
         T = len(schedule.t)
@@ -219,9 +212,7 @@ class TestActiveFeetAt:
             planted = left if stance_side == "L" else right
             assert planted[2] == pytest.approx(0.0, abs=1e-9)
 
-    def test_both_feet_grounded_in_double_support(
-        self, schedule_and_steps, phase_alpha, cfg
-    ):
+    def test_both_feet_grounded_in_double_support(self, schedule_and_steps, phase_alpha, cfg):
         """During double support both feet must be at z=0."""
         schedule, footsteps = schedule_and_steps
         T = len(schedule.t)
@@ -251,9 +242,7 @@ class TestActiveFeetAt:
                 break
         assert found_lift, "Swing foot never lifted off the ground near mid-phase"
 
-    def test_swing_foot_grounded_at_phase_start(
-        self, schedule_and_steps, phase_alpha, cfg
-    ):
+    def test_swing_foot_grounded_at_phase_start(self, schedule_and_steps, phase_alpha, cfg):
         """At the very first timestep of single support, swing foot z ≈ 0."""
         schedule, footsteps = schedule_and_steps
         T = len(schedule.t)
@@ -282,9 +271,7 @@ class TestActiveFeetAt:
             assert planted[0] == pytest.approx(fs.x, abs=1e-9)
             assert planted[1] == pytest.approx(fs.y, abs=1e-9)
 
-    def test_left_right_assignment_consistent_with_side(
-        self, schedule_and_steps, phase_alpha, cfg
-    ):
+    def test_left_right_assignment_consistent_with_side(self, schedule_and_steps, phase_alpha, cfg):
         """The foot assigned to 'left' must always come from an 'L' footstep
         and vice versa — checked at double-support frames where both are planted."""
         schedule, footsteps = schedule_and_steps

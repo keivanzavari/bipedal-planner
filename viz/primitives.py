@@ -45,9 +45,7 @@ def log_world(entity_path: str, world, obstacle_height: float = 1.0) -> None:
         )
 
     W, H = world.width, world.height
-    boundary = np.array(
-        [[0, 0, 0], [W, 0, 0], [W, H, 0], [0, H, 0], [0, 0, 0]], dtype=np.float32
-    )
+    boundary = np.array([[0, 0, 0], [W, 0, 0], [W, H, 0], [0, H, 0], [0, 0, 0]], dtype=np.float32)
     rr.log(
         f"{entity_path}/boundary",
         rr.LineStrips3D([boundary], colors=[[0, 0, 0, 255]]),
@@ -67,9 +65,7 @@ def log_waypoints(entity_path: str, path: list) -> None:
     )
 
 
-def _foot_corners(
-    x: float, y: float, theta: float, foot_length: float, foot_width: float
-) -> np.ndarray:
+def _foot_corners(x: float, y: float, theta: float, foot_length: float, foot_width: float) -> np.ndarray:
     """Return the 4 corners of a foot rectangle in world coordinates (2D)."""
     hl, hw = foot_length / 2, foot_width / 2
     local = np.array([[-hl, -hw], [hl, -hw], [hl, hw], [-hl, hw]], dtype=np.float64)
@@ -142,9 +138,7 @@ def log_support_polygons(path_stable: str, path_unstable: str, phases) -> None:
         )
 
 
-def log_com_stability_points(
-    path_stable: str, path_unstable: str, phases, com_height: float = 0.0
-) -> None:
+def log_com_stability_points(path_stable: str, path_unstable: str, phases, com_height: float = 0.0) -> None:
     """Log CoM positions at each stance phase as Points3D, coloured by stability."""
     stable_pts: list[np.ndarray] = []
     unstable_pts: list[np.ndarray] = []
@@ -179,28 +173,20 @@ def log_com_stability_points(
         )
 
 
-def log_spatial_trajectory(
-    path_com: str, path_zmp: str, traj, com_height: float
-) -> None:
+def log_spatial_trajectory(path_com: str, path_zmp: str, traj, com_height: float) -> None:
     """Log CoM (at com_height) and ZMP (at z=0) as downsampled static overview strips."""
     T = len(traj.t)
     s = _stride(T, 2000)
     idx = range(0, T, s)
 
-    com_pts = np.column_stack(
-        [traj.x[::s], traj.y[::s], np.full(len(traj.x[::s]), com_height)]
-    ).astype(np.float32)
-    zmp_pts = np.column_stack(
-        [traj.zmp_x[::s], traj.zmp_y[::s], np.zeros(len(list(idx)))]
-    ).astype(np.float32)
+    com_pts = np.column_stack([traj.x[::s], traj.y[::s], np.full(len(traj.x[::s]), com_height)]).astype(np.float32)
+    zmp_pts = np.column_stack([traj.zmp_x[::s], traj.zmp_y[::s], np.zeros(len(list(idx)))]).astype(np.float32)
 
     rr.log(path_com, rr.LineStrips3D([com_pts], colors=[[230, 126, 34, 255]]), static=True)
     rr.log(path_zmp, rr.LineStrips3D([zmp_pts], colors=[[155, 89, 182, 255]]), static=True)
 
 
-def log_animated_trajectory(
-    path_com: str, path_zmp: str, traj, com_height: float
-) -> None:
+def log_animated_trajectory(path_com: str, path_zmp: str, traj, com_height: float) -> None:
     """Log CoM (at com_height) and ZMP (at z=0) as time-indexed Points3D.
 
     Creates moving markers that animate when the Rerun timeline is scrubbed.
@@ -390,9 +376,9 @@ def log_tracking_overlay(entity_path: str, result, com_height: float) -> None:
     s = _stride(T, 2000)
 
     # Static overview: actual path
-    actual_pts = np.column_stack(
-        [result.x[::s], result.y[::s], np.full(len(result.x[::s]), com_height)]
-    ).astype(np.float32)
+    actual_pts = np.column_stack([result.x[::s], result.y[::s], np.full(len(result.x[::s]), com_height)]).astype(
+        np.float32
+    )
     rr.log(
         f"{entity_path}/actual",
         rr.LineStrips3D([actual_pts], colors=[[230, 126, 34, 255]]),
@@ -475,11 +461,11 @@ def log_slippery_zone(entity_path: str, zone) -> None:
     # Bright border so the zone is visible even when viewed from above
     border = np.array(
         [
-            [zone.x,         zone.y,         0.0],
-            [zone.x + zone.w, zone.y,         0.0],
+            [zone.x, zone.y, 0.0],
+            [zone.x + zone.w, zone.y, 0.0],
             [zone.x + zone.w, zone.y + zone.h, 0.0],
-            [zone.x,         zone.y + zone.h, 0.0],
-            [zone.x,         zone.y,         0.0],
+            [zone.x, zone.y + zone.h, 0.0],
+            [zone.x, zone.y, 0.0],
         ],
         dtype=np.float32,
     )
@@ -490,8 +476,9 @@ def log_slippery_zone(entity_path: str, zone) -> None:
     )
 
 
-def log_active_support_polygon(entity_path: str, result, schedule, footsteps,
-                                foot_length: float, foot_width: float) -> None:
+def log_active_support_polygon(
+    entity_path: str, result, schedule, footsteps, foot_length: float, foot_width: float
+) -> None:
     """Animated support polygon rectangle at ground level, shrinking in slippery zones."""
     T = len(result.t)
     s = _stride(T, 1000)
@@ -531,12 +518,12 @@ def log_zmp_vs_bounds(result) -> None:
     directly visible on the timeline.
     """
     _series = [
-        ("tracking/zmp_bounds/zmp_x",  [155,  89, 182], "ZMP x"),
-        ("tracking/zmp_bounds/lb_x",   [231,  76,  60], "lb x"),
-        ("tracking/zmp_bounds/ub_x",   [231,  76,  60], "ub x"),
-        ("tracking/zmp_bounds/zmp_y",  [142,  68, 173], "ZMP y"),
-        ("tracking/zmp_bounds/lb_y",   [192,  57,  43], "lb y"),
-        ("tracking/zmp_bounds/ub_y",   [192,  57,  43], "ub y"),
+        ("tracking/zmp_bounds/zmp_x", [155, 89, 182], "ZMP x"),
+        ("tracking/zmp_bounds/lb_x", [231, 76, 60], "lb x"),
+        ("tracking/zmp_bounds/ub_x", [231, 76, 60], "ub x"),
+        ("tracking/zmp_bounds/zmp_y", [142, 68, 173], "ZMP y"),
+        ("tracking/zmp_bounds/lb_y", [192, 57, 43], "lb y"),
+        ("tracking/zmp_bounds/ub_y", [192, 57, 43], "ub y"),
     ]
     for path, color, name in _series:
         rr.log(path, rr.SeriesLine(color=color, name=name), static=True)
@@ -546,11 +533,11 @@ def log_zmp_vs_bounds(result) -> None:
     for i in range(0, T, s):
         rr.set_time_seconds("t", float(result.t[i]))
         rr.log("tracking/zmp_bounds/zmp_x", rr.Scalar(float(result.zmp_x[i])))
-        rr.log("tracking/zmp_bounds/lb_x",  rr.Scalar(float(result.zmp_lb_x[i])))
-        rr.log("tracking/zmp_bounds/ub_x",  rr.Scalar(float(result.zmp_ub_x[i])))
+        rr.log("tracking/zmp_bounds/lb_x", rr.Scalar(float(result.zmp_lb_x[i])))
+        rr.log("tracking/zmp_bounds/ub_x", rr.Scalar(float(result.zmp_ub_x[i])))
         rr.log("tracking/zmp_bounds/zmp_y", rr.Scalar(float(result.zmp_y[i])))
-        rr.log("tracking/zmp_bounds/lb_y",  rr.Scalar(float(result.zmp_lb_y[i])))
-        rr.log("tracking/zmp_bounds/ub_y",  rr.Scalar(float(result.zmp_ub_y[i])))
+        rr.log("tracking/zmp_bounds/lb_y", rr.Scalar(float(result.zmp_lb_y[i])))
+        rr.log("tracking/zmp_bounds/ub_y", rr.Scalar(float(result.zmp_ub_y[i])))
 
 
 def log_friction_scalar(result) -> None:

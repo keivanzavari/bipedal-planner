@@ -148,10 +148,17 @@ if __name__ == "__main__":
     parser.add_argument("--planner", default="astar", choices=list(PLANNERS))
     parser.add_argument("--controller", default="lqr", choices=list(CONTROLLERS))
     parser.add_argument("--noise", type=float, default=0.001, dest="noise_sigma")
-    parser.add_argument("--slippery", action="store_true", help="Add a slippery zone across the middle third of the world")
+    parser.add_argument(
+        "--slippery", action="store_true", help="Add a slippery zone across the middle third of the world"
+    )
     parser.add_argument("--friction-scale", type=float, default=0.4, dest="friction_scale")
-    parser.add_argument("--zone", nargs=4, type=float, metavar=("X", "Y", "W", "H"),
-                        help="Custom slippery zone geometry (default: middle third of world)")
+    parser.add_argument(
+        "--zone",
+        nargs=4,
+        type=float,
+        metavar=("X", "Y", "W", "H"),
+        help="Custom slippery zone geometry (default: middle third of world)",
+    )
     args = parser.parse_args()
 
     world, start, goal = WORLDS[args.world]()
@@ -167,8 +174,12 @@ if __name__ == "__main__":
             h = world.height
         slippery_zones = [SlipperyZone(x=x, y=y, w=w, h=h, friction_scale=args.friction_scale)]
 
-    run(world, start, goal,
+    run(
+        world,
+        start,
+        goal,
         planner_name=args.planner,
         controller_name=args.controller,
         noise_sigma=args.noise_sigma,
-        slippery_zones=slippery_zones)
+        slippery_zones=slippery_zones,
+    )

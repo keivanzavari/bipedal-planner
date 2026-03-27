@@ -170,10 +170,10 @@ def _solve_2d_qp_sparse(
     T = len(zmp_ref_x)
     nx = 3
     # Variable block offsets
-    ox = 0          # x-axis states: z[ox + 3k : ox + 3(k+1)]
-    ou = 3 * T      # x-axis controls: z[ou + k]
-    oy = 4 * T      # y-axis states: z[oy + 3k : oy + 3(k+1)]
-    ov = 7 * T      # y-axis controls: z[ov + k]
+    ox = 0  # x-axis states: z[ox + 3k : ox + 3(k+1)]
+    ou = 3 * T  # x-axis controls: z[ou + k]
+    oy = 4 * T  # y-axis states: z[oy + 3k : oy + 3(k+1)]
+    ov = 7 * T  # y-axis controls: z[ov + k]
     n_vars = 8 * T
 
     # --- Objective: OSQP form  min (1/2) z'Pz + q'z ---
@@ -201,9 +201,7 @@ def _solve_2d_qp_sparse(
     n_eq_y_dyn = nx * (T - 1)
 
     # Count total polygon rows
-    poly_rows_per_k = [
-        len(poly_cache[(int(schedule.phase[k]), schedule.kind[k])][1]) for k in range(T)
-    ]
+    poly_rows_per_k = [len(poly_cache[(int(schedule.phase[k]), schedule.kind[k])][1]) for k in range(T)]
     n_poly = sum(poly_rows_per_k)
 
     n_constraints = n_eq_x_init + n_eq_x_dyn + n_eq_y_init + n_eq_y_dyn + n_poly
@@ -290,15 +288,17 @@ def _solve_2d_qp_sparse(
     u_vec[r0y : r0y + n_eq_y_dyn] = 0.0
 
     # Polygon upper bounds: b_k - eps (one-sided: A@p <= b - eps)
-    poly_b = np.concatenate([
-        poly_cache[(int(schedule.phase[k]), schedule.kind[k])][1] for k in range(T)
-    ])
+    poly_b = np.concatenate([poly_cache[(int(schedule.phase[k]), schedule.kind[k])][1] for k in range(T)])
     u_vec[r_poly:] = poly_b - _eps
 
     # --- Solve ---
     solver = osqp.OSQP()
     solver.setup(
-        P_osqp, q, A_osqp, l_vec, u_vec,
+        P_osqp,
+        q,
+        A_osqp,
+        l_vec,
+        u_vec,
         verbose=False,
         eps_abs=1e-6,
         eps_rel=1e-6,
@@ -306,8 +306,8 @@ def _solve_2d_qp_sparse(
     )
     result = solver.solve()
 
-    states_x = result.x[ox : ou].reshape(T, nx)
-    states_y = result.x[oy : ov].reshape(T, nx)
+    states_x = result.x[ox:ou].reshape(T, nx)
+    states_y = result.x[oy:ov].reshape(T, nx)
 
     px, vx, ax_arr = states_x[:, 0], states_x[:, 1], states_x[:, 2]
     py, vy, ay_arr = states_y[:, 0], states_y[:, 1], states_y[:, 2]
@@ -371,10 +371,17 @@ def run_trajectory_optimization(
 
     print(f"  [QP] Solving joint 2D QP ({T} timesteps, sparse OSQP) ...")
     px, vx, ax_arr, zx, py, vy, ay_arr, zy, ok = _solve_2d_qp_sparse(
-        A, B, C, x0_x, x0_y,
-        schedule.zmp_x, schedule.zmp_y,
-        poly_cache, schedule,
-        Q_e, R_jerk,
+        A,
+        B,
+        C,
+        x0_x,
+        x0_y,
+        schedule.zmp_x,
+        schedule.zmp_y,
+        poly_cache,
+        schedule,
+        Q_e,
+        R_jerk,
     )
     if not ok:
         warnings.warn("Trajectory optimizer did not converge.", stacklevel=2)

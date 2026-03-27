@@ -13,10 +13,10 @@ import numpy as np
 
 from robot.config import RobotConfig
 
-
 # ---------------------------------------------------------------------------
 # 2-link inverse kinematics
 # ---------------------------------------------------------------------------
+
 
 def _knee_bend_direction(d_hat: np.ndarray, fallback_forward: np.ndarray) -> np.ndarray:
     """Unit vector perpendicular to d_hat, biased upward (places knee anterior).
@@ -81,6 +81,7 @@ def two_link_knee(
 # Foot position helpers
 # ---------------------------------------------------------------------------
 
+
 def compute_phase_progress(schedule) -> np.ndarray:
     """Pre-compute fractional progress α ∈ [0, 1) within each support phase.
 
@@ -94,11 +95,7 @@ def compute_phase_progress(schedule) -> np.ndarray:
         k_start = k
         phase_i = int(schedule.phase[k])
         phase_kind = schedule.kind[k]
-        while (
-            k < T
-            and int(schedule.phase[k]) == phase_i
-            and schedule.kind[k] == phase_kind
-        ):
+        while k < T and int(schedule.phase[k]) == phase_i and schedule.kind[k] == phase_kind:
             k += 1
         n = k - k_start
         for j in range(n):
@@ -176,6 +173,6 @@ def active_feet_at(
     swing_xyz = np.array([swing_x, swing_y, swing_z])
 
     if footsteps[i].side == "L":
-        return stance_xyz, swing_xyz   # left=stance, right=swing
+        return stance_xyz, swing_xyz  # left=stance, right=swing
     else:
-        return swing_xyz, stance_xyz   # left=swing, right=stance
+        return swing_xyz, stance_xyz  # left=swing, right=stance

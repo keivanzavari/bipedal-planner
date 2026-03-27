@@ -21,26 +21,26 @@ from stage3.controllers.base import Controller
 
 @dataclass
 class TrackingResult:
-    t: np.ndarray        # (T,)
-    x: np.ndarray        # (T,)  actual CoM x
-    y: np.ndarray        # (T,)  actual CoM y
-    vx: np.ndarray       # (T,)
-    vy: np.ndarray       # (T,)
-    ref_x: np.ndarray    # (T,)  Stage 2 reference CoM x
-    ref_y: np.ndarray    # (T,)  Stage 2 reference CoM y
-    err_x: np.ndarray    # (T,)  position error x  (actual - ref)
-    err_y: np.ndarray    # (T,)  position error y
-    u_x: np.ndarray      # (T,)  applied jerk x
-    u_y: np.ndarray      # (T,)  applied jerk y
-    grf_left: np.ndarray   # (T, 3)  [Fx, Fy, Fz] — zeros for LQR/MPC
+    t: np.ndarray  # (T,)
+    x: np.ndarray  # (T,)  actual CoM x
+    y: np.ndarray  # (T,)  actual CoM y
+    vx: np.ndarray  # (T,)
+    vy: np.ndarray  # (T,)
+    ref_x: np.ndarray  # (T,)  Stage 2 reference CoM x
+    ref_y: np.ndarray  # (T,)  Stage 2 reference CoM y
+    err_x: np.ndarray  # (T,)  position error x  (actual - ref)
+    err_y: np.ndarray  # (T,)  position error y
+    u_x: np.ndarray  # (T,)  applied jerk x
+    u_y: np.ndarray  # (T,)  applied jerk y
+    grf_left: np.ndarray  # (T, 3)  [Fx, Fy, Fz] — zeros for LQR/MPC
     grf_right: np.ndarray  # (T, 3)
-    zmp_x: np.ndarray    # (T,)  actual ZMP x  (= pos_x - h/g * acc_x)
-    zmp_y: np.ndarray    # (T,)  actual ZMP y
-    zmp_lb_x: np.ndarray # (T,)  support-polygon lower bound x (friction-adjusted)
-    zmp_ub_x: np.ndarray # (T,)  support-polygon upper bound x
-    zmp_lb_y: np.ndarray # (T,)  support-polygon lower bound y
-    zmp_ub_y: np.ndarray # (T,)  support-polygon upper bound y
-    friction: np.ndarray # (T,)  effective friction coefficient at each step
+    zmp_x: np.ndarray  # (T,)  actual ZMP x  (= pos_x - h/g * acc_x)
+    zmp_y: np.ndarray  # (T,)  actual ZMP y
+    zmp_lb_x: np.ndarray  # (T,)  support-polygon lower bound x (friction-adjusted)
+    zmp_ub_x: np.ndarray  # (T,)  support-polygon upper bound x
+    zmp_lb_y: np.ndarray  # (T,)  support-polygon lower bound y
+    zmp_ub_y: np.ndarray  # (T,)  support-polygon upper bound y
+    friction: np.ndarray  # (T,)  effective friction coefficient at each step
 
 
 def _friction_at(zones: list[SlipperyZone] | None, px: float, py: float) -> float:
@@ -84,8 +84,11 @@ def _slippery_zmp_bounds(
                 prev = footsteps[phase_idx - 1]
                 fscale_p = _friction_at(zones, prev.x, prev.y)
                 corners_p = _foot_corners(
-                    prev.x, prev.y, prev.theta,
-                    foot_length * fscale_p, foot_width * fscale_p,
+                    prev.x,
+                    prev.y,
+                    prev.theta,
+                    foot_length * fscale_p,
+                    foot_width * fscale_p,
                 )
                 corners = np.vstack([corners, corners_p])
             lb_x[k] = corners[:, 0].min()
@@ -135,9 +138,7 @@ def run_simulation(
     rng = np.random.default_rng(rng_seed)
 
     # Precompute per-step friction and support-polygon bounds
-    lb_x, ub_x, lb_y, ub_y = _slippery_zmp_bounds(
-        schedule, footsteps, foot_length, foot_width, slippery_zones
-    )
+    lb_x, ub_x, lb_y, ub_y = _slippery_zmp_bounds(schedule, footsteps, foot_length, foot_width, slippery_zones)
     friction = np.ones(T)
     for k in range(T):
         phase_idx = int(schedule.phase[k])
@@ -148,9 +149,8 @@ def run_simulation(
     landing_sigma = np.zeros(T)
     if slippery_zones:
         for k in range(1, T):
-            is_new_single = (
-                schedule.kind[k] == "single"
-                and (schedule.kind[k - 1] != "single" or schedule.phase[k] != schedule.phase[k - 1])
+            is_new_single = schedule.kind[k] == "single" and (
+                schedule.kind[k - 1] != "single" or schedule.phase[k] != schedule.phase[k - 1]
             )
             if is_new_single:
                 phase_idx = int(schedule.phase[k])
@@ -164,15 +164,15 @@ def run_simulation(
     state_x = np.array([traj.x[0], traj.vx[0], traj.ax[0]])
     state_y = np.array([traj.y[0], traj.vy[0], traj.ay[0]])
 
-    out_x   = np.empty(T)
-    out_y   = np.empty(T)
-    out_vx  = np.empty(T)
-    out_vy  = np.empty(T)
-    out_ux  = np.empty(T)
-    out_uy  = np.empty(T)
+    out_x = np.empty(T)
+    out_y = np.empty(T)
+    out_vx = np.empty(T)
+    out_vy = np.empty(T)
+    out_ux = np.empty(T)
+    out_uy = np.empty(T)
     out_zmp_x = np.empty(T)
     out_zmp_y = np.empty(T)
-    grf_left  = np.zeros((T, 3))
+    grf_left = np.zeros((T, 3))
     grf_right = np.zeros((T, 3))
 
     for k in range(T):
@@ -187,12 +187,12 @@ def run_simulation(
 
         ux, uy = controller.step(k, state_x, state_y)
 
-        out_x[k]     = state_x[0]
-        out_y[k]     = state_y[0]
-        out_vx[k]    = state_x[1]
-        out_vy[k]    = state_y[1]
-        out_ux[k]    = ux
-        out_uy[k]    = uy
+        out_x[k] = state_x[0]
+        out_y[k] = state_y[0]
+        out_vx[k] = state_x[1]
+        out_vy[k] = state_y[1]
+        out_ux[k] = ux
+        out_uy[k] = uy
         out_zmp_x[k] = float(C @ state_x)
         out_zmp_y[k] = float(C @ state_y)
 

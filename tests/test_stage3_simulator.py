@@ -8,8 +8,7 @@ from stage2.contact_schedule import build_contact_schedule
 from stage2.lipm import LIPMParams
 from stage2.preview_controller import compute_gains, run_preview_control
 from stage3.controllers.lqr import LQRController
-from stage3.simulator import TrackingResult, run_simulation
-
+from stage3.simulator import run_simulation
 
 # ---------------------------------------------------------------------------
 # Shared fixture

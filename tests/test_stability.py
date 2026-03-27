@@ -1,6 +1,5 @@
 """Tests for stage1/stability.py — support polygon and stability checks."""
 
-
 import numpy as np
 
 from stage1.footstep import Footstep

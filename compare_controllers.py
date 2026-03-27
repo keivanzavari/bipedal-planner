@@ -29,7 +29,6 @@ from stage2.contact_schedule import build_contact_schedule
 from stage2.lipm import LIPMParams
 from stage2.preview_controller import compute_gains, run_preview_control
 from stage3.controllers import CONTROLLERS, get_controller
-from stage3.controllers.mpc import MPCController
 from stage3.simulator import TrackingResult, run_simulation
 
 # ------------------------------------------------------------------
@@ -57,21 +56,23 @@ _COLORS = ["#e74c3c", "#3498db", "#2ecc71", "#9b59b6", "#f39c12", "#1abc9c", "#e
 # Helpers
 # ------------------------------------------------------------------
 
-def _build_controller(name: str, footsteps, foot_length: float, foot_width: float,
-                       slippery_zones=None):
+
+def _build_controller(name: str, footsteps, foot_length: float, foot_width: float, slippery_zones=None):
     if name == "mpc":
-        return get_controller(name, footsteps=footsteps, foot_length=foot_length,
-                              foot_width=foot_width, slippery_zones=slippery_zones)
+        return get_controller(
+            name, footsteps=footsteps, foot_length=foot_length, foot_width=foot_width, slippery_zones=slippery_zones
+        )
     return get_controller(name)
 
 
 def _rms(arr: np.ndarray) -> float:
-    return float(np.sqrt(np.mean(arr ** 2)))
+    return float(np.sqrt(np.mean(arr**2)))
 
 
 # ------------------------------------------------------------------
 # Main comparison routine
 # ------------------------------------------------------------------
+
 
 def compare(
     world,
@@ -96,9 +97,12 @@ def compare(
         print("  No path found — aborting.")
         return
     footsteps = plan_footsteps(
-        path, world,
-        step_length=STEP_LENGTH, step_width=STEP_WIDTH,
-        foot_length=FOOT_LENGTH, foot_width=FOOT_WIDTH,
+        path,
+        world,
+        step_length=STEP_LENGTH,
+        step_width=STEP_WIDTH,
+        foot_length=FOOT_LENGTH,
+        foot_width=FOOT_WIDTH,
         foot_clearance=FOOT_CLEARANCE,
     )
     print(f"  Waypoints: {len(path)}  |  Footsteps: {len(footsteps)}")
@@ -108,7 +112,10 @@ def compare(
     # ------------------------------------------------------------------
     print("[Stage 2] Building schedule and computing reference trajectory...")
     schedule = build_contact_schedule(
-        footsteps, t_single=T_SINGLE, t_double=T_DOUBLE, dt=LIPM_PARAMS.dt,
+        footsteps,
+        t_single=T_SINGLE,
+        t_double=T_DOUBLE,
+        dt=LIPM_PARAMS.dt,
     )
     gains = compute_gains(LIPM_PARAMS, Q_e=Q_E, R=R_JERK, N_preview=N_PREVIEW)
     traj = run_preview_control(schedule, footsteps, gains)
@@ -125,10 +132,16 @@ def compare(
         ctrl = _build_controller(name, footsteps, FOOT_LENGTH, FOOT_WIDTH, slippery_zones)
         t0 = time.perf_counter()
         result = run_simulation(
-            traj, schedule, footsteps, LIPM_PARAMS, ctrl,
-            noise_sigma=noise_sigma, rng_seed=rng_seed,
+            traj,
+            schedule,
+            footsteps,
+            LIPM_PARAMS,
+            ctrl,
+            noise_sigma=noise_sigma,
+            rng_seed=rng_seed,
             slippery_zones=slippery_zones,
-            foot_length=FOOT_LENGTH, foot_width=FOOT_WIDTH,
+            foot_length=FOOT_LENGTH,
+            foot_width=FOOT_WIDTH,
         )
         timings[name] = time.perf_counter() - t0
         results[name] = result
@@ -150,10 +163,7 @@ def compare(
         viol_x = int(np.sum((res.zmp_x < res.zmp_lb_x) | (res.zmp_x > res.zmp_ub_x)))
         viol_y = int(np.sum((res.zmp_y < res.zmp_lb_y) | (res.zmp_y > res.zmp_ub_y)))
         ms = timings[name] * 1000
-        print(
-            f"{name:<12}  {max_e:>16.2f}  {rms_e:>13.4f}"
-            f"  {viol_x:>5}/{T:<5}  {viol_y:>5}/{T:<5}  {ms:>10.1f}"
-        )
+        print(f"{name:<12}  {max_e:>16.2f}  {rms_e:>13.4f}  {viol_x:>5}/{T:<5}  {viol_y:>5}/{T:<5}  {ms:>10.1f}")
     print()
 
     # ------------------------------------------------------------------
@@ -162,8 +172,7 @@ def compare(
     t = traj.t
     fig, axes = plt.subplots(3, 2, figsize=(14, 10), sharex=True)
     fig.suptitle(
-        f"Controller comparison — world={world.__class__.__name__}  "
-        f"noise={noise_sigma}  seed={rng_seed}",
+        f"Controller comparison — world={world.__class__.__name__}  noise={noise_sigma}  seed={rng_seed}",
         fontsize=12,
     )
 
@@ -175,13 +184,13 @@ def compare(
     ax_px.plot(t, traj.x, "k--", lw=1.2, label="reference", alpha=0.6)
     ax_py.plot(t, traj.y, "k--", lw=1.2, label="reference", alpha=0.6)
 
-    for (name, res), color in zip(results.items(), _COLORS):
-        ax_px.plot(t, res.x,    color=color, lw=1.0, label=name)
-        ax_py.plot(t, res.y,    color=color, lw=1.0, label=name)
+    for (name, res), color in zip(results.items(), _COLORS, strict=True):
+        ax_px.plot(t, res.x, color=color, lw=1.0, label=name)
+        ax_py.plot(t, res.y, color=color, lw=1.0, label=name)
         ax_ex.plot(t, res.err_x * 100, color=color, lw=1.0, label=name)
         ax_ey.plot(t, res.err_y * 100, color=color, lw=1.0, label=name)
-        ax_ux.plot(t, res.u_x,  color=color, lw=0.8, label=name)
-        ax_uy.plot(t, res.u_y,  color=color, lw=0.8, label=name)
+        ax_ux.plot(t, res.u_x, color=color, lw=0.8, label=name)
+        ax_uy.plot(t, res.u_y, color=color, lw=0.8, label=name)
 
     ax_px.set_ylabel("CoM x (m)")
     ax_py.set_ylabel("CoM y (m)")
@@ -218,30 +227,46 @@ def compare(
     ax2.plot(boundary_x, boundary_y, "k-", lw=1.5)
     for obs in world.obstacles:
         rect = plt.Rectangle(
-            (obs.x, obs.y), obs.w, obs.h,
-            linewidth=1, edgecolor="#555", facecolor="#bbb", alpha=0.7,
+            (obs.x, obs.y),
+            obs.w,
+            obs.h,
+            linewidth=1,
+            edgecolor="#555",
+            facecolor="#bbb",
+            alpha=0.7,
         )
         ax2.add_patch(rect)
 
     # Slippery zone overlay
     if slippery_zones:
         for zone in slippery_zones:
-            ax2.add_patch(plt.Rectangle(
-                (zone.x, zone.y), zone.w, zone.h,
-                linewidth=1.5, edgecolor="#64b4ff", facecolor="#b4dcff",
-                alpha=0.45, zorder=2,
-            ))
+            ax2.add_patch(
+                plt.Rectangle(
+                    (zone.x, zone.y),
+                    zone.w,
+                    zone.h,
+                    linewidth=1.5,
+                    edgecolor="#64b4ff",
+                    facecolor="#b4dcff",
+                    alpha=0.45,
+                    zorder=2,
+                )
+            )
             ax2.text(
-                zone.x + zone.w / 2, zone.y + zone.h / 2,
+                zone.x + zone.w / 2,
+                zone.y + zone.h / 2,
                 f"μ={zone.friction_scale:.1f}",
-                ha="center", va="center", fontsize=8, color="#0050a0",
+                ha="center",
+                va="center",
+                fontsize=8,
+                color="#0050a0",
             )
 
     # Reference CoM path
     ax2.plot(traj.x, traj.y, "k--", lw=1.5, label="reference", alpha=0.6, zorder=3)
 
     # Actual paths
-    for (name, res), color in zip(results.items(), _COLORS):
+    for (name, res), color in zip(results.items(), _COLORS, strict=True):
         ax2.plot(res.x, res.y, color=color, lw=1.2, label=name, zorder=4)
 
     # Footstep markers
@@ -266,17 +291,22 @@ if __name__ == "__main__":
     parser.add_argument("world", nargs="?", default="demo", choices=list(WORLDS))
     parser.add_argument("--planner", default="astar", choices=list(PLANNERS))
     parser.add_argument(
-        "--controllers", nargs="+", default=list(CONTROLLERS),
-        choices=list(CONTROLLERS), metavar="CTRL",
+        "--controllers",
+        nargs="+",
+        default=list(CONTROLLERS),
+        choices=list(CONTROLLERS),
+        metavar="CTRL",
         help=f"Controllers to compare (default: all). Available: {list(CONTROLLERS)}",
     )
     parser.add_argument("--noise", type=float, default=0.001, dest="noise_sigma")
     parser.add_argument("--seed", type=int, default=0, dest="rng_seed")
-    parser.add_argument("--slippery", action="store_true",
-                        help="Add a slippery zone across the middle third of the world")
+    parser.add_argument(
+        "--slippery", action="store_true", help="Add a slippery zone across the middle third of the world"
+    )
     parser.add_argument("--friction-scale", type=float, default=0.4, dest="friction_scale")
-    parser.add_argument("--zone", nargs=4, type=float, metavar=("X", "Y", "W", "H"),
-                        help="Custom slippery zone geometry")
+    parser.add_argument(
+        "--zone", nargs=4, type=float, metavar=("X", "Y", "W", "H"), help="Custom slippery zone geometry"
+    )
     args = parser.parse_args()
 
     world, start, goal = WORLDS[args.world]()
@@ -293,7 +323,9 @@ if __name__ == "__main__":
         slippery_zones = [SlipperyZone(x=x, y=y, w=w, h=h, friction_scale=args.friction_scale)]
 
     compare(
-        world, start, goal,
+        world,
+        start,
+        goal,
         planner_name=args.planner,
         controller_names=args.controllers,
         noise_sigma=args.noise_sigma,

@@ -36,6 +36,7 @@ def minimal_traj():
 # SlipperyZone unit tests
 # ---------------------------------------------------------------------------
 
+
 class TestSlipperyZone:
     def test_contains_interior(self):
         z = SlipperyZone(x=1.0, y=0.0, w=2.0, h=3.0)
@@ -73,28 +74,27 @@ class TestSlipperyZone:
 # Simulator integration tests
 # ---------------------------------------------------------------------------
 
+
 class TestSimulatorSlippery:
     def test_result_has_friction_array(self, minimal_traj):
         traj, schedule = minimal_traj
         ctrl = LQRController()
-        result = run_simulation(traj, schedule, _FOOTSTEPS, _PARAMS, ctrl,
-                                noise_sigma=0.0, rng_seed=0)
+        result = run_simulation(traj, schedule, _FOOTSTEPS, _PARAMS, ctrl, noise_sigma=0.0, rng_seed=0)
         assert result.friction.shape == (len(traj.t),)
 
     def test_friction_all_ones_no_zones(self, minimal_traj):
         traj, schedule = minimal_traj
         ctrl = LQRController()
-        result = run_simulation(traj, schedule, _FOOTSTEPS, _PARAMS, ctrl,
-                                noise_sigma=0.0, rng_seed=0)
+        result = run_simulation(traj, schedule, _FOOTSTEPS, _PARAMS, ctrl, noise_sigma=0.0, rng_seed=0)
         assert np.all(result.friction == 1.0)
 
     def test_friction_drops_in_zone(self, minimal_traj):
         traj, schedule = minimal_traj
         zone = SlipperyZone(x=0.0, y=-0.5, w=2.0, h=1.0, friction_scale=0.5)
         ctrl = LQRController()
-        result = run_simulation(traj, schedule, _FOOTSTEPS, _PARAMS, ctrl,
-                                noise_sigma=0.0, rng_seed=0,
-                                slippery_zones=[zone])
+        result = run_simulation(
+            traj, schedule, _FOOTSTEPS, _PARAMS, ctrl, noise_sigma=0.0, rng_seed=0, slippery_zones=[zone]
+        )
         # All footsteps are inside the zone (x in [0.25, 1.0], y in [-0.1, 0.1])
         assert np.any(result.friction < 1.0)
         assert np.all(result.friction <= 1.0)
@@ -105,15 +105,28 @@ class TestSimulatorSlippery:
         ctrl = LQRController()
 
         result_normal = run_simulation(
-            traj, schedule, _FOOTSTEPS, _PARAMS, ctrl, noise_sigma=0.0,
-            foot_length=_FOOT_LENGTH, foot_width=_FOOT_WIDTH,
+            traj,
+            schedule,
+            _FOOTSTEPS,
+            _PARAMS,
+            ctrl,
+            noise_sigma=0.0,
+            foot_length=_FOOT_LENGTH,
+            foot_width=_FOOT_WIDTH,
         )
         result_slippery = run_simulation(
-            traj, schedule, _FOOTSTEPS, _PARAMS, ctrl, noise_sigma=0.0,
-            slippery_zones=[zone], foot_length=_FOOT_LENGTH, foot_width=_FOOT_WIDTH,
+            traj,
+            schedule,
+            _FOOTSTEPS,
+            _PARAMS,
+            ctrl,
+            noise_sigma=0.0,
+            slippery_zones=[zone],
+            foot_length=_FOOT_LENGTH,
+            foot_width=_FOOT_WIDTH,
         )
         # Bounds should be strictly narrower in the slippery region
-        width_normal   = result_normal.zmp_ub_x - result_normal.zmp_lb_x
+        width_normal = result_normal.zmp_ub_x - result_normal.zmp_lb_x
         width_slippery = result_slippery.zmp_ub_x - result_slippery.zmp_lb_x
         assert np.all(width_slippery <= width_normal + 1e-9)
         assert np.any(width_slippery < width_normal - 1e-9)
@@ -123,19 +136,24 @@ class TestSimulatorSlippery:
         ctrl = LQRController()
         result = run_simulation(traj, schedule, _FOOTSTEPS, _PARAMS, ctrl, noise_sigma=0.0)
         T = len(traj.t)
-        for arr in (result.zmp_x, result.zmp_y,
-                    result.zmp_lb_x, result.zmp_ub_x,
-                    result.zmp_lb_y, result.zmp_ub_y,
-                    result.friction):
+        for arr in (
+            result.zmp_x,
+            result.zmp_y,
+            result.zmp_lb_x,
+            result.zmp_ub_x,
+            result.zmp_lb_y,
+            result.zmp_ub_y,
+            result.friction,
+        ):
             assert arr.shape == (T,)
 
     def test_lqr_finite_with_slippery(self, minimal_traj):
         traj, schedule = minimal_traj
         zone = SlipperyZone(x=0.0, y=-0.5, w=2.0, h=1.0, friction_scale=0.4)
         ctrl = LQRController()
-        result = run_simulation(traj, schedule, _FOOTSTEPS, _PARAMS, ctrl,
-                                noise_sigma=0.005, rng_seed=42,
-                                slippery_zones=[zone])
+        result = run_simulation(
+            traj, schedule, _FOOTSTEPS, _PARAMS, ctrl, noise_sigma=0.005, rng_seed=42, slippery_zones=[zone]
+        )
         assert np.all(np.isfinite(result.x))
         assert np.all(np.isfinite(result.y))
 
@@ -143,6 +161,7 @@ class TestSimulatorSlippery:
 # ---------------------------------------------------------------------------
 # MPC slippery zone tests
 # ---------------------------------------------------------------------------
+
 
 class TestMPCSlippery:
     def test_mpc_reset_with_slippery_zone(self, minimal_traj):
@@ -165,8 +184,8 @@ class TestMPCSlippery:
             foot_width=_FOOT_WIDTH,
             slippery_zones=[zone],
         )
-        result = run_simulation(traj, schedule, _FOOTSTEPS, _PARAMS, ctrl,
-                                noise_sigma=0.005, rng_seed=42,
-                                slippery_zones=[zone])
+        result = run_simulation(
+            traj, schedule, _FOOTSTEPS, _PARAMS, ctrl, noise_sigma=0.005, rng_seed=42, slippery_zones=[zone]
+        )
         assert np.all(np.isfinite(result.x))
         assert np.all(np.isfinite(result.y))

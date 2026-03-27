@@ -281,10 +281,10 @@ class SlipperyZone:
     landing impulse magnitude.  1.0 = normal floor, 0.5 = half friction (icy).
     """
 
-    x: float           # left edge (m)
-    y: float           # bottom edge (m)
-    w: float           # width (m)
-    h: float           # height (m)
+    x: float  # left edge (m)
+    y: float  # bottom edge (m)
+    w: float  # width (m)
+    h: float  # height (m)
     friction_scale: float = 0.5
 
     def contains(self, px: float, py: float) -> bool:
