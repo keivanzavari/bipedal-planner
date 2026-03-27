@@ -39,7 +39,7 @@ R_JERK = 1e-6  # jerk smoothness weight
 N_PREVIEW = 200  # preview horizon (steps = 1 s at dt=0.005)
 
 
-def run(world, start, goal, planner_name: str = "astar", viz: str = "matplotlib", method: str = "preview"):
+def run(world, start, goal, planner_name: str = "astar", viz: str = "matplotlib", method: str = "preview", body: str = "rod"):
     planner = get_planner(planner_name, inflation_margin=INFLATION_MARGIN)
 
     # ------------------------------------------------------------------
@@ -130,6 +130,7 @@ def run(world, start, goal, planner_name: str = "astar", viz: str = "matplotlib"
             foot_width=FOOT_WIDTH,
             inflation_margin=INFLATION_MARGIN,
             com_height=LIPM_PARAMS.h,
+            body=body,
         )
     else:
         import matplotlib
@@ -157,7 +158,9 @@ if __name__ == "__main__":
     parser.add_argument("--planner", default="astar", choices=list(PLANNERS))
     parser.add_argument("--viz", default="matplotlib", choices=["matplotlib", "rerun"])
     parser.add_argument("--method", default="preview", choices=["preview", "optimize"])
+    parser.add_argument("--body", default="rod", choices=["rod", "model"],
+                        help="rerun only: 'rod' = inverted-pendulum rod, 'model' = 2-link stick figure")
     args = parser.parse_args()
 
     world, start, goal = WORLDS[args.world]()
-    run(world, start, goal, planner_name=args.planner, viz=args.viz, method=args.method)
+    run(world, start, goal, planner_name=args.planner, viz=args.viz, method=args.method, body=args.body)

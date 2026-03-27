@@ -297,6 +297,70 @@ def log_scalar_timeseries(traj, schedule) -> None:
         rr.log("trajectory/zmp_ref/y", rr.Scalar(float(schedule.zmp_y[i])))
 
 
+def log_torso_box(entity_path: str, traj, com_height: float, cfg) -> None:
+    """Animated torso box centred above the CoM, yaw-aligned with velocity."""
+    T = len(traj.t)
+    s = _stride(T, 1000)
+    prev_yaw = 0.0
+    center_z = com_height - cfg.pelvis_offset + cfg.torso_height / 2
+    for i in range(0, T, s):
+        rr.set_time_seconds("t", float(traj.t[i]))
+        vx, vy = float(traj.vx[i]), float(traj.vy[i])
+        speed = math.hypot(vx, vy)
+        yaw = math.atan2(vy, vx) if speed > 0.01 else prev_yaw
+        prev_yaw = yaw
+        rr.log(
+            entity_path,
+            rr.Boxes3D(
+                centers=[[float(traj.x[i]), float(traj.y[i]), center_z]],
+                half_sizes=[[cfg.torso_width / 2, cfg.torso_depth / 2, cfg.torso_height / 2]],
+                rotations=[rr.Quaternion(xyzw=[0.0, 0.0, math.sin(yaw / 2), math.cos(yaw / 2)])],
+                colors=[[200, 200, 200, 180]],
+                fill_mode=rr.components.FillMode.Solid,
+            ),
+        )
+
+
+def log_body_legs(entity_path: str, traj, footsteps, schedule, com_height: float, cfg) -> None:
+    """Animated 2-link legs (hip → knee → foot) for left and right sides."""
+    from robot.kinematics import active_feet_at, compute_phase_progress, two_link_knee
+
+    phase_alpha = compute_phase_progress(schedule)
+    T = len(traj.t)
+    s = _stride(T, 1000)
+    hip_z = com_height - cfg.pelvis_offset
+    for i in range(0, T, s):
+        rr.set_time_seconds("t", float(traj.t[i]))
+        cx, cy = float(traj.x[i]), float(traj.y[i])
+        hip_l = np.array([cx - cfg.hip_width, cy, hip_z])
+        hip_r = np.array([cx + cfg.hip_width, cy, hip_z])
+
+        vx, vy = float(traj.vx[i]), float(traj.vy[i])
+        speed = math.hypot(vx, vy)
+        fwd = np.array([vx / speed, vy / speed, 0.0]) if speed > 0.01 else np.array([1.0, 0.0, 0.0])
+
+        foot_l, foot_r = active_feet_at(i, footsteps, schedule, cfg, phase_alpha)
+        knee_l = two_link_knee(hip_l, foot_l, cfg.upper_leg, cfg.lower_leg, fwd)
+        knee_r = two_link_knee(hip_r, foot_r, cfg.upper_leg, cfg.lower_leg, fwd)
+
+        rr.log(
+            f"{entity_path}/left",
+            rr.LineStrips3D(
+                [np.array([hip_l, knee_l, foot_l], dtype=np.float32)],
+                colors=[[52, 152, 219, 220]],
+                radii=0.012,
+            ),
+        )
+        rr.log(
+            f"{entity_path}/right",
+            rr.LineStrips3D(
+                [np.array([hip_r, knee_r, foot_r], dtype=np.float32)],
+                colors=[[231, 76, 60, 220]],
+                radii=0.012,
+            ),
+        )
+
+
 def log_phase_transitions(entity_path: str, schedule) -> None:
     """Log phase kind (single/double) as TextLog only at transitions."""
     prev_kind = None

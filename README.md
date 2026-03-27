@@ -29,18 +29,27 @@ stage2/
   preview_controller.py ZMP Preview Control (Kajita 2003) — offline LQR + online loop
   traj_visualizer.py    2-D spatial overlay + 4-panel time-series plots (matplotlib)
 
+robot/
+  config.py             RobotConfig dataclass (leg geometry, torso dimensions)
+  kinematics.py         Closed-form 2-link IK, swing-foot arc, phase progress
+
 viz/
   __init__.py           Re-exports visualize_stage1, visualize_stage2
-  primitives.py         Low-level rr.log helpers (world, path, feet, stability, scalars)
+  primitives.py         Low-level rr.log helpers (world, path, feet, body, scalars)
   blueprint.py          Rerun blueprint layouts for stage 1 and stage 2
   stage1_viz.py         Stage 1 Rerun entry point
-  stage2_viz.py         Stage 2 Rerun entry point
+  stage2_viz.py         Stage 2 Rerun entry point (rod or 2-link model)
 ```
 
-The two stages are intentionally separated: Stage 1 outputs an ordered list of
+The stages are intentionally separated: Stage 1 outputs an ordered list of
 `Footstep` objects; Stage 2 consumes that list and produces a `CoMTrajectory`
 (position, velocity, acceleration, ZMP at every timestep) ready to hand off to
-a real-time tracking controller (Stage 3 — not implemented).
+a real-time tracking controller (Stage 3 — not yet implemented).
+
+The `robot/` module provides a lightweight kinematic model (hip/knee/ankle chain,
+swing-foot parabolic arc) shared by visualization and future Stage 3 controllers.
+No physics simulation is required — geometry is inferred from CoM position and the
+known footstep schedule.
 
 ## Worlds
 
@@ -83,6 +92,7 @@ uv run python stage2_main.py                                        # demo world
 uv run python stage2_main.py warehouse --planner theta_star
 uv run python stage2_main.py corridor  --planner rrt
 uv run python stage2_main.py demo      --viz rerun
+uv run python stage2_main.py demo      --viz rerun --body model     # 2-link stick figure
 ```
 
 ### Visualization backends
@@ -90,13 +100,23 @@ uv run python stage2_main.py demo      --viz rerun
 | Backend      | Stage 1                   | Stage 2                             | Notes                   |
 |--------------|---------------------------|-------------------------------------|-------------------------|
 | `matplotlib` | static figure             | two figures (spatial + time-series) | default                 |
-| `rerun`      | interactive Spatial2DView | Spatial2DView + TimeSeriesViews     | spawns the Rerun viewer |
+| `rerun`      | interactive Spatial3DView | Spatial3DView + TimeSeriesViews     | spawns the Rerun viewer |
 
 The Rerun backend (`--viz rerun`) logs world geometry, footsteps, support
 polygons, CoM/ZMP spatial paths, and all scalar time-series channels.  The
 stage 2 layout is a 60/40 horizontal split: spatial overview on the left,
 position/velocity/acceleration time-series stacked on the right.  Scrubbing
 the timeline animates the CoM and ZMP markers in the spatial view.
+
+### Body representation (Rerun only)
+
+| `--body` | Description |
+|----------|-------------|
+| `rod`    | Inverted-pendulum rod from ZMP to CoM (default, minimal) |
+| `model`  | Animated 2-link stick figure: torso box + bending legs with parabolic swing-foot arc |
+
+The `model` option uses closed-form 2-link IK to compute knee positions from the
+CoM and the known footstep schedule — no physics simulation is needed.
 
 ### Planners
 

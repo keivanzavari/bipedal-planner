@@ -36,7 +36,7 @@ def build_stage2_blueprint() -> rrb.Blueprint:
         rrb.Horizontal(
             rrb.Spatial3DView(
                 origin="/",
-                contents=["world/**", "planning/**", "spatial/**"],
+                contents=["world/**", "planning/**", "spatial/**", "spatial/body/**"],
             ),
             rrb.Vertical(
                 rrb.TimeSeriesView(
