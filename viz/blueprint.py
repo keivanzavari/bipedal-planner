@@ -1,4 +1,4 @@
-"""Rerun blueprint definitions for stage 1 and stage 2 visualizations."""
+"""Rerun blueprint definitions for stage 1, stage 2, and stage 3 visualizations."""
 
 from __future__ import annotations
 
@@ -56,5 +56,44 @@ def build_stage2_blueprint() -> rrb.Blueprint:
                 ),
             ),
             column_shares=[3, 2],
+        ),
+    )
+
+
+def build_stage3_blueprint() -> rrb.Blueprint:
+    """3-panel layout: 50% 3D spatial, 25% position/ZMP series, 25% tracking error.
+
+    Entity path layout:
+      world/**                   — obstacles, boundary (static)
+      planning/footsteps/**      — foot rectangles (static)
+      spatial/**                 — CoM/ZMP overview strips and animated markers
+      spatial/body/**            — torso box and legs
+      tracking/**                — actual vs reference CoM paths, GRF arrows
+      trajectory/com/position/** — CoM x/y scalars (time-indexed)
+      trajectory/zmp/**          — ZMP x/y scalars (time-indexed)
+      trajectory/zmp_ref/**      — ZMP reference x/y scalars (time-indexed)
+      tracking/error/**          — position error x/y scalars (time-indexed)
+    """
+    return rrb.Blueprint(
+        rrb.Horizontal(
+            rrb.Spatial3DView(
+                origin="/",
+                contents=["world/**", "planning/**", "spatial/**", "tracking/**"],
+            ),
+            rrb.Vertical(
+                rrb.TimeSeriesView(
+                    origin="/",
+                    contents=[
+                        "trajectory/com/position/**",
+                        "trajectory/zmp/**",
+                        "trajectory/zmp_ref/**",
+                    ],
+                ),
+                rrb.TimeSeriesView(
+                    origin="/",
+                    contents=["tracking/error/**"],
+                ),
+            ),
+            column_shares=[1, 1],
         ),
     )

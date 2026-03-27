@@ -105,7 +105,7 @@ def plan_footsteps(
 
     Parameters
     ----------
-    waypoints      : smoothed CoM path from the A* planner
+    waypoints      : smoothed CoM path from planner
     world          : World instance (used for collision checking)
     step_length    : forward distance between consecutive steps (m)
     step_width     : lateral offset of each foot from CoM centreline (m)

@@ -369,3 +369,105 @@ def log_phase_transitions(entity_path: str, schedule) -> None:
             rr.set_time_seconds("t", float(schedule.t[i]))
             rr.log(entity_path, rr.TextLog(kind))
             prev_kind = kind
+
+
+# ---------------------------------------------------------------------------
+# Stage 3 primitives
+# ---------------------------------------------------------------------------
+
+
+def log_tracking_overlay(entity_path: str, result, com_height: float) -> None:
+    """Log actual vs reference CoM paths and an animated actual-CoM marker.
+
+    Static strips:
+      - Actual CoM path (orange solid line)
+      - Reference CoM path (blue downsampled points, approximating a dashed look)
+
+    Animated:
+      - Point marker following the actual CoM position
+    """
+    T = len(result.t)
+    s = _stride(T, 2000)
+
+    # Static overview: actual path
+    actual_pts = np.column_stack(
+        [result.x[::s], result.y[::s], np.full(len(result.x[::s]), com_height)]
+    ).astype(np.float32)
+    rr.log(
+        f"{entity_path}/actual",
+        rr.LineStrips3D([actual_pts], colors=[[230, 126, 34, 255]]),
+        static=True,
+    )
+
+    # Static overview: reference path (downsampled Points3D to approximate dashes)
+    ref_pts = np.column_stack(
+        [result.ref_x[::s], result.ref_y[::s], np.full(len(result.ref_x[::s]), com_height)]
+    ).astype(np.float32)
+    rr.log(
+        f"{entity_path}/reference",
+        rr.Points3D(ref_pts, colors=[[52, 152, 219, 180]], radii=0.012),
+        static=True,
+    )
+
+    # Animated marker at actual CoM position
+    s_anim = _stride(T, 1000)
+    for i in range(0, T, s_anim):
+        rr.set_time_seconds("t", float(result.t[i]))
+        rr.log(
+            f"{entity_path}/actual/marker",
+            rr.Points3D(
+                [[float(result.x[i]), float(result.y[i]), com_height]],
+                colors=[[230, 126, 34, 255]],
+                radii=0.05,
+            ),
+        )
+
+
+def log_grf_arrows(entity_path: str, result, footsteps, schedule, cfg) -> None:
+    """Log Ground Reaction Force arrows at foot positions (time-indexed).
+
+    Vectors are scaled by 1/50 for visual clarity. For LQR (zero GRFs) the
+    arrows have zero length and are invisible.
+    """
+    from robot.kinematics import active_feet_at, compute_phase_progress
+
+    phase_alpha = compute_phase_progress(schedule)
+    T = len(result.t)
+    s = _stride(T, 1000)
+
+    for i in range(0, T, s):
+        rr.set_time_seconds("t", float(result.t[i]))
+        foot_l, foot_r = active_feet_at(i, footsteps, schedule, cfg, phase_alpha)
+
+        grf_l = result.grf_left[i] / 50.0
+        grf_r = result.grf_right[i] / 50.0
+
+        rr.log(
+            f"{entity_path}/left",
+            rr.Arrows3D(
+                origins=[foot_l.tolist()],
+                vectors=[grf_l.tolist()],
+                colors=[[46, 204, 113, 220]],
+            ),
+        )
+        rr.log(
+            f"{entity_path}/right",
+            rr.Arrows3D(
+                origins=[foot_r.tolist()],
+                vectors=[grf_r.tolist()],
+                colors=[[230, 126, 34, 220]],
+            ),
+        )
+
+
+def log_tracking_error_timeseries(result) -> None:
+    """Log tracking error x/y as time-indexed scalar channels."""
+    rr.log("tracking/error/x", rr.SeriesLine(color=[231, 76, 60], name="err x"), static=True)
+    rr.log("tracking/error/y", rr.SeriesLine(color=[192, 57, 43], name="err y"), static=True)
+
+    T = len(result.t)
+    s = _stride(T, 5000)
+    for i in range(0, T, s):
+        rr.set_time_seconds("t", float(result.t[i]))
+        rr.log("tracking/error/x", rr.Scalar(float(result.err_x[i])))
+        rr.log("tracking/error/y", rr.Scalar(float(result.err_y[i])))
