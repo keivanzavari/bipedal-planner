@@ -1,0 +1,18 @@
+<mujoco model="planar_biped_scene">
+  <!-- Top-level scene: biped + floor + lighting. -->
+
+  <include file="biped.xml"/>
+
+  <visual>
+    <global offwidth="1280" offheight="720"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+  </visual>
+
+  <worldbody>
+    <!-- Ground plane -->
+    <geom name="floor" type="plane" size="20 20 0.1" rgba="0.9 0.9 0.9 1"
+          condim="3" solimp="0.9 0.95 0.001" solref="0.01 1" friction="1.0 0.005 0.0001"/>
+    <!-- Lighting -->
+    <light name="spotlight" pos="0 -2 3" dir="0 1 -1" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3"/>
+  </worldbody>
+</mujoco>
