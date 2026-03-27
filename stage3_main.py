@@ -93,7 +93,15 @@ def run(
     # ------------------------------------------------------------------
     print(f"[Stage 3] Running closed-loop simulation (controller={controller_name}, noise={noise_sigma})...")
     t0 = time.perf_counter()
-    controller = get_controller(controller_name)
+    if controller_name == "mpc":
+        controller = get_controller(
+            controller_name,
+            footsteps=footsteps,
+            foot_length=FOOT_LENGTH,
+            foot_width=FOOT_WIDTH,
+        )
+    else:
+        controller = get_controller(controller_name)
     result = run_simulation(
         traj,
         schedule,

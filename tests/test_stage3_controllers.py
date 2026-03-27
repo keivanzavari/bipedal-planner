@@ -9,7 +9,10 @@ from stage2.lipm import LIPMParams
 from stage2.preview_controller import compute_gains, run_preview_control
 from stage3.controllers import CONTROLLERS, get_controller
 from stage3.controllers.lqr import LQRController
+from stage3.controllers.mpc import MPCController
 
+_FOOT_LENGTH = 0.16
+_FOOT_WIDTH = 0.08
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
@@ -29,7 +32,14 @@ def minimal_setup():
     schedule = build_contact_schedule(footsteps, t_single=0.4, t_double=0.1, dt=params.dt)
     gains = compute_gains(params, Q_e=1.0, R=1e-6, N_preview=200)
     traj = run_preview_control(schedule, footsteps, gains)
-    return traj, schedule, params
+    return traj, schedule, params, footsteps
+
+
+def _make_controller(cls, footsteps):
+    """Construct a controller instance with the appropriate arguments."""
+    if cls is MPCController:
+        return cls(footsteps=footsteps, foot_length=_FOOT_LENGTH, foot_width=_FOOT_WIDTH)
+    return cls()
 
 
 # ---------------------------------------------------------------------------
@@ -38,6 +48,7 @@ def minimal_setup():
 
 ALL_CONTROLLERS = [
     pytest.param(LQRController, id="lqr"),
+    pytest.param(MPCController, id="mpc"),
 ]
 
 
@@ -46,13 +57,13 @@ class TestControllerContract:
     """Behaviour that every Controller implementation must satisfy."""
 
     def test_reset_does_not_raise(self, ctrl_cls, minimal_setup):
-        traj, schedule, params = minimal_setup
-        ctrl = ctrl_cls()
+        traj, schedule, params, footsteps = minimal_setup
+        ctrl = _make_controller(ctrl_cls, footsteps)
         ctrl.reset(traj, schedule, params)
 
     def test_step_returns_two_floats(self, ctrl_cls, minimal_setup):
-        traj, schedule, params = minimal_setup
-        ctrl = ctrl_cls()
+        traj, schedule, params, footsteps = minimal_setup
+        ctrl = _make_controller(ctrl_cls, footsteps)
         ctrl.reset(traj, schedule, params)
         state_x = np.array([traj.x[0], traj.vx[0], traj.ax[0]])
         state_y = np.array([traj.y[0], traj.vy[0], traj.ay[0]])
@@ -64,8 +75,8 @@ class TestControllerContract:
         assert isinstance(uy, float)
 
     def test_step_returns_finite_values(self, ctrl_cls, minimal_setup):
-        traj, schedule, params = minimal_setup
-        ctrl = ctrl_cls()
+        traj, schedule, params, footsteps = minimal_setup
+        ctrl = _make_controller(ctrl_cls, footsteps)
         ctrl.reset(traj, schedule, params)
         state_x = np.array([traj.x[0], traj.vx[0], traj.ax[0]])
         state_y = np.array([traj.y[0], traj.vy[0], traj.ay[0]])
@@ -75,8 +86,8 @@ class TestControllerContract:
 
     def test_step_last_index(self, ctrl_cls, minimal_setup):
         """step() must not raise at the last valid timestep index."""
-        traj, schedule, params = minimal_setup
-        ctrl = ctrl_cls()
+        traj, schedule, params, footsteps = minimal_setup
+        ctrl = _make_controller(ctrl_cls, footsteps)
         ctrl.reset(traj, schedule, params)
         T = len(traj.t)
         state_x = np.array([traj.x[-1], traj.vx[-1], traj.ax[-1]])
@@ -94,6 +105,9 @@ class TestControllerRegistry:
     def test_controllers_dict_contains_lqr(self):
         assert "lqr" in CONTROLLERS
 
+    def test_controllers_dict_contains_mpc(self):
+        assert "mpc" in CONTROLLERS
+
     def test_get_controller_returns_lqr(self):
         ctrl = get_controller("lqr")
         assert isinstance(ctrl, LQRController)
@@ -102,6 +116,6 @@ class TestControllerRegistry:
         with pytest.raises(ValueError, match="Unknown controller"):
             get_controller("nonexistent_controller")
 
-    def test_get_controller_passes_kwargs(self):
+    def test_get_controller_passes_kwargs_lqr(self):
         ctrl = get_controller("lqr", Q_e=2.0, R=1e-5)
         assert isinstance(ctrl, LQRController)

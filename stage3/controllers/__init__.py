@@ -1,9 +1,10 @@
 from stage3.controllers.base import Controller
 from stage3.controllers.lqr import LQRController
+from stage3.controllers.mpc import MPCController
 
 CONTROLLERS: dict[str, type] = {
     "lqr": LQRController,
-    # "mpc": MPCController,   ← deferred
+    "mpc": MPCController,
     # "wbc": WBCController,   ← deferred
 }
 
