@@ -61,18 +61,20 @@ def build_stage2_blueprint() -> rrb.Blueprint:
 
 
 def build_stage3_blueprint() -> rrb.Blueprint:
-    """3-panel layout: 50% 3D spatial, 25% position/ZMP series, 25% tracking error.
+    """3-panel layout: 50% 3D spatial, 50% stacked time-series (3 rows).
 
     Entity path layout:
-      world/**                   — obstacles, boundary (static)
-      planning/footsteps/**      — foot rectangles (static)
-      spatial/**                 — CoM/ZMP overview strips and animated markers
-      spatial/body/**            — torso box and legs
-      tracking/**                — actual vs reference CoM paths, GRF arrows
-      trajectory/com/position/** — CoM x/y scalars (time-indexed)
-      trajectory/zmp/**          — ZMP x/y scalars (time-indexed)
-      trajectory/zmp_ref/**      — ZMP reference x/y scalars (time-indexed)
-      tracking/error/**          — position error x/y scalars (time-indexed)
+      world/**                    — obstacles, boundary, slippery zones (static)
+      planning/footsteps/**       — foot rectangles (static)
+      spatial/**                  — CoM/ZMP overview strips and animated markers
+      spatial/body/**             — torso box and legs
+      tracking/**                 — actual vs reference CoM paths, support polygon
+      trajectory/com/position/**  — CoM x/y scalars (time-indexed)
+      trajectory/zmp/**           — ZMP x/y scalars (time-indexed)
+      trajectory/zmp_ref/**       — ZMP reference x/y scalars (time-indexed)
+      tracking/zmp_bounds/**      — actual ZMP + lb/ub per axis (time-indexed)
+      tracking/friction           — friction coefficient scalar (time-indexed)
+      tracking/error/**           — position error x/y scalars (time-indexed)
     """
     return rrb.Blueprint(
         rrb.Horizontal(
@@ -87,6 +89,13 @@ def build_stage3_blueprint() -> rrb.Blueprint:
                         "trajectory/com/position/**",
                         "trajectory/zmp/**",
                         "trajectory/zmp_ref/**",
+                    ],
+                ),
+                rrb.TimeSeriesView(
+                    origin="/",
+                    contents=[
+                        "tracking/zmp_bounds/**",
+                        "tracking/friction",
                     ],
                 ),
                 rrb.TimeSeriesView(

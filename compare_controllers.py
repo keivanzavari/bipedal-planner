@@ -24,7 +24,7 @@ import numpy as np
 
 from stage1.footstep import plan_footsteps
 from stage1.planners import PLANNERS, get_planner
-from stage1.world import WORLDS
+from stage1.world import WORLDS, SlipperyZone
 from stage2.contact_schedule import build_contact_schedule
 from stage2.lipm import LIPMParams
 from stage2.preview_controller import compute_gains, run_preview_control
@@ -57,9 +57,11 @@ _COLORS = ["#e74c3c", "#3498db", "#2ecc71", "#9b59b6", "#f39c12", "#1abc9c", "#e
 # Helpers
 # ------------------------------------------------------------------
 
-def _build_controller(name: str, footsteps, foot_length: float, foot_width: float):
+def _build_controller(name: str, footsteps, foot_length: float, foot_width: float,
+                       slippery_zones=None):
     if name == "mpc":
-        return get_controller(name, footsteps=footsteps, foot_length=foot_length, foot_width=foot_width)
+        return get_controller(name, footsteps=footsteps, foot_length=foot_length,
+                              foot_width=foot_width, slippery_zones=slippery_zones)
     return get_controller(name)
 
 
@@ -79,6 +81,7 @@ def compare(
     controller_names: list[str] | None = None,
     noise_sigma: float = 0.001,
     rng_seed: int = 0,
+    slippery_zones=None,
 ) -> None:
     if controller_names is None:
         controller_names = list(CONTROLLERS)
@@ -119,11 +122,13 @@ def compare(
 
     for name in controller_names:
         print(f"[Stage 3] Simulating '{name}'...")
-        ctrl = _build_controller(name, footsteps, FOOT_LENGTH, FOOT_WIDTH)
+        ctrl = _build_controller(name, footsteps, FOOT_LENGTH, FOOT_WIDTH, slippery_zones)
         t0 = time.perf_counter()
         result = run_simulation(
             traj, schedule, footsteps, LIPM_PARAMS, ctrl,
             noise_sigma=noise_sigma, rng_seed=rng_seed,
+            slippery_zones=slippery_zones,
+            foot_length=FOOT_LENGTH, foot_width=FOOT_WIDTH,
         )
         timings[name] = time.perf_counter() - t0
         results[name] = result
@@ -132,14 +137,23 @@ def compare(
     # Stats table
     # ------------------------------------------------------------------
     print()
-    header = f"{'Controller':<12}  {'Max |err| (cm)':>16}  {'RMS err (cm)':>13}  {'Time (ms)':>10}"
+    header = (
+        f"{'Controller':<12}  {'Max |err| (cm)':>16}  {'RMS err (cm)':>13}"
+        f"  {'ZMP viol-x':>11}  {'ZMP viol-y':>11}  {'Time (ms)':>10}"
+    )
     print(header)
     print("-" * len(header))
     for name, res in results.items():
         max_e = max(float(np.abs(res.err_x).max()), float(np.abs(res.err_y).max())) * 100
         rms_e = max(_rms(res.err_x), _rms(res.err_y)) * 100
+        T = len(res.zmp_x)
+        viol_x = int(np.sum((res.zmp_x < res.zmp_lb_x) | (res.zmp_x > res.zmp_ub_x)))
+        viol_y = int(np.sum((res.zmp_y < res.zmp_lb_y) | (res.zmp_y > res.zmp_ub_y)))
         ms = timings[name] * 1000
-        print(f"{name:<12}  {max_e:>16.2f}  {rms_e:>13.4f}  {ms:>10.1f}")
+        print(
+            f"{name:<12}  {max_e:>16.2f}  {rms_e:>13.4f}"
+            f"  {viol_x:>5}/{T:<5}  {viol_y:>5}/{T:<5}  {ms:>10.1f}"
+        )
     print()
 
     # ------------------------------------------------------------------
@@ -209,6 +223,20 @@ def compare(
         )
         ax2.add_patch(rect)
 
+    # Slippery zone overlay
+    if slippery_zones:
+        for zone in slippery_zones:
+            ax2.add_patch(plt.Rectangle(
+                (zone.x, zone.y), zone.w, zone.h,
+                linewidth=1.5, edgecolor="#64b4ff", facecolor="#b4dcff",
+                alpha=0.45, zorder=2,
+            ))
+            ax2.text(
+                zone.x + zone.w / 2, zone.y + zone.h / 2,
+                f"μ={zone.friction_scale:.1f}",
+                ha="center", va="center", fontsize=8, color="#0050a0",
+            )
+
     # Reference CoM path
     ax2.plot(traj.x, traj.y, "k--", lw=1.5, label="reference", alpha=0.6, zorder=3)
 
@@ -244,13 +272,31 @@ if __name__ == "__main__":
     )
     parser.add_argument("--noise", type=float, default=0.001, dest="noise_sigma")
     parser.add_argument("--seed", type=int, default=0, dest="rng_seed")
+    parser.add_argument("--slippery", action="store_true",
+                        help="Add a slippery zone across the middle third of the world")
+    parser.add_argument("--friction-scale", type=float, default=0.4, dest="friction_scale")
+    parser.add_argument("--zone", nargs=4, type=float, metavar=("X", "Y", "W", "H"),
+                        help="Custom slippery zone geometry")
     args = parser.parse_args()
 
     world, start, goal = WORLDS[args.world]()
+
+    slippery_zones = None
+    if args.slippery:
+        if args.zone:
+            x, y, w, h = args.zone
+        else:
+            x = world.width / 3
+            y = 0.0
+            w = world.width / 3
+            h = world.height
+        slippery_zones = [SlipperyZone(x=x, y=y, w=w, h=h, friction_scale=args.friction_scale)]
+
     compare(
         world, start, goal,
         planner_name=args.planner,
         controller_names=args.controllers,
         noise_sigma=args.noise_sigma,
         rng_seed=args.rng_seed,
+        slippery_zones=slippery_zones,
     )

@@ -271,3 +271,21 @@ WORLDS = {
     "assembly_line": make_assembly_line_world,
     "warehouse": make_warehouse_world,
 }
+
+
+@dataclass
+class SlipperyZone:
+    """Axis-aligned rectangular region of reduced friction on the floor.
+
+    friction_scale ∈ (0, 1]: scales the effective foot support polygon and
+    landing impulse magnitude.  1.0 = normal floor, 0.5 = half friction (icy).
+    """
+
+    x: float           # left edge (m)
+    y: float           # bottom edge (m)
+    w: float           # width (m)
+    h: float           # height (m)
+    friction_scale: float = 0.5
+
+    def contains(self, px: float, py: float) -> bool:
+        return self.x <= px <= self.x + self.w and self.y <= py <= self.y + self.h

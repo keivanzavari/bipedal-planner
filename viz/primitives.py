@@ -460,6 +460,109 @@ def log_grf_arrows(entity_path: str, result, footsteps, schedule, cfg) -> None:
         )
 
 
+def log_slippery_zone(entity_path: str, zone) -> None:
+    """Log a slippery zone as a flat, semi-transparent box on the floor (z=0)."""
+    rr.log(
+        entity_path,
+        rr.Boxes3D(
+            centers=[[zone.x + zone.w / 2, zone.y + zone.h / 2, -0.002]],
+            half_sizes=[[zone.w / 2, zone.h / 2, 0.002]],
+            colors=[[180, 220, 255, 120]],
+            fill_mode=rr.components.FillMode.Solid,
+        ),
+        static=True,
+    )
+    # Bright border so the zone is visible even when viewed from above
+    border = np.array(
+        [
+            [zone.x,         zone.y,         0.0],
+            [zone.x + zone.w, zone.y,         0.0],
+            [zone.x + zone.w, zone.y + zone.h, 0.0],
+            [zone.x,         zone.y + zone.h, 0.0],
+            [zone.x,         zone.y,         0.0],
+        ],
+        dtype=np.float32,
+    )
+    rr.log(
+        f"{entity_path}/border",
+        rr.LineStrips3D([border], colors=[[100, 180, 255, 255]], radii=0.006),
+        static=True,
+    )
+
+
+def log_active_support_polygon(entity_path: str, result, schedule, footsteps,
+                                foot_length: float, foot_width: float) -> None:
+    """Animated support polygon rectangle at ground level, shrinking in slippery zones."""
+    T = len(result.t)
+    s = _stride(T, 1000)
+    for i in range(0, T, s):
+        rr.set_time_seconds("t", float(result.t[i]))
+
+        lb_x = float(result.zmp_lb_x[i])
+        ub_x = float(result.zmp_ub_x[i])
+        lb_y = float(result.zmp_lb_y[i])
+        ub_y = float(result.zmp_ub_y[i])
+        cx = (lb_x + ub_x) / 2
+        cy = (lb_y + ub_y) / 2
+        hw = (ub_x - lb_x) / 2
+        hh = (ub_y - lb_y) / 2
+
+        # Colour: green (normal) → orange (narrow/slippery)
+        fric = float(result.friction[i])
+        r = int(46 + (230 - 46) * (1.0 - fric))
+        g = int(204 - (204 - 126) * (1.0 - fric))
+        b = int(113 * fric)
+        rr.log(
+            entity_path,
+            rr.Boxes3D(
+                centers=[[cx, cy, 0.001]],
+                half_sizes=[[max(hw, 0.005), max(hh, 0.005), 0.001]],
+                colors=[[r, g, b, 200]],
+                fill_mode=rr.components.FillMode.Solid,
+            ),
+        )
+
+
+def log_zmp_vs_bounds(result) -> None:
+    """Log actual ZMP and support-polygon bounds as time-indexed scalar channels.
+
+    Shows three channels per axis: actual ZMP, lower bound, upper bound.
+    The lb/ub channels narrow in slippery zones, making the constraint tightening
+    directly visible on the timeline.
+    """
+    _series = [
+        ("tracking/zmp_bounds/zmp_x",  [155,  89, 182], "ZMP x"),
+        ("tracking/zmp_bounds/lb_x",   [231,  76,  60], "lb x"),
+        ("tracking/zmp_bounds/ub_x",   [231,  76,  60], "ub x"),
+        ("tracking/zmp_bounds/zmp_y",  [142,  68, 173], "ZMP y"),
+        ("tracking/zmp_bounds/lb_y",   [192,  57,  43], "lb y"),
+        ("tracking/zmp_bounds/ub_y",   [192,  57,  43], "ub y"),
+    ]
+    for path, color, name in _series:
+        rr.log(path, rr.SeriesLine(color=color, name=name), static=True)
+
+    T = len(result.t)
+    s = _stride(T, 5000)
+    for i in range(0, T, s):
+        rr.set_time_seconds("t", float(result.t[i]))
+        rr.log("tracking/zmp_bounds/zmp_x", rr.Scalar(float(result.zmp_x[i])))
+        rr.log("tracking/zmp_bounds/lb_x",  rr.Scalar(float(result.zmp_lb_x[i])))
+        rr.log("tracking/zmp_bounds/ub_x",  rr.Scalar(float(result.zmp_ub_x[i])))
+        rr.log("tracking/zmp_bounds/zmp_y", rr.Scalar(float(result.zmp_y[i])))
+        rr.log("tracking/zmp_bounds/lb_y",  rr.Scalar(float(result.zmp_lb_y[i])))
+        rr.log("tracking/zmp_bounds/ub_y",  rr.Scalar(float(result.zmp_ub_y[i])))
+
+
+def log_friction_scalar(result) -> None:
+    """Log the per-timestep friction coefficient as a scalar channel."""
+    rr.log("tracking/friction", rr.SeriesLine(color=[100, 180, 255], name="friction"), static=True)
+    T = len(result.t)
+    s = _stride(T, 5000)
+    for i in range(0, T, s):
+        rr.set_time_seconds("t", float(result.t[i]))
+        rr.log("tracking/friction", rr.Scalar(float(result.friction[i])))
+
+
 def log_tracking_error_timeseries(result) -> None:
     """Log tracking error x/y as time-indexed scalar channels."""
     rr.log("tracking/error/x", rr.SeriesLine(color=[231, 76, 60], name="err x"), static=True)

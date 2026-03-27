@@ -35,6 +35,7 @@ import scipy.linalg
 import scipy.sparse as sp
 
 from stage1.footstep import Footstep
+from stage1.world import SlipperyZone
 from stage2.contact_schedule import ContactSchedule
 from stage2.lipm import LIPMParams, lipm_matrices
 from stage2.preview_controller import CoMTrajectory
@@ -52,12 +53,14 @@ class MPCController:
         N_horizon: int = 20,
         Q_e: float = 1.0,
         R: float = 1e-6,
+        slippery_zones: list[SlipperyZone] | None = None,
     ) -> None:
         self._footsteps = footsteps
         self._foot_length = foot_length
         self._foot_width = foot_width
         self._N = N_horizon
         self._Q_e = Q_e
+        self._slippery_zones = slippery_zones or []
         self._R = R
         # Populated by reset()
         self._A: np.ndarray | None = None
@@ -141,10 +144,14 @@ class MPCController:
         H_sp = sp.csc_matrix(np.triu(H_dense))
 
         # ----------------------------------------------------------------
-        # Expanded ZMP bounds: always contain the reference ZMP
+        # Expanded ZMP bounds: always contain the reference ZMP.
+        # Slippery zones shrink the foot polygon, tightening the bounds.
         # ----------------------------------------------------------------
-        lb_x, ub_x, lb_y, ub_y = _compute_zmp_bounds(
-            schedule, self._footsteps, self._foot_length, self._foot_width
+        from stage3.simulator import _slippery_zmp_bounds
+        lb_x, ub_x, lb_y, ub_y = _slippery_zmp_bounds(
+            schedule, self._footsteps,
+            self._foot_length, self._foot_width,
+            self._slippery_zones,
         )
         _eps = 0.001
         self._expanded_lb_x = np.minimum(lb_x, traj.zmp_x) - _eps
@@ -205,6 +212,16 @@ class MPCController:
         l_y = (elb_y - ref_zmp_y) - zmp_free_y
         u_y = (eub_y - ref_zmp_y) - zmp_free_y
 
+        # Guarantee du=0 is always feasible: the free ZMP response at horizon steps
+        # with no control authority (P[i,:]=0 rows, notably row 0) may place zmp_free
+        # outside the bounds, making the QP infeasible.  Clamping l ≤ 0 ≤ u ensures
+        # the unconstrained fallback du=0 is always valid while still penalising
+        # constraint violations through the DARE objective.
+        l_x = np.minimum(l_x, 0.0)
+        u_x = np.maximum(u_x, 0.0)
+        l_y = np.minimum(l_y, 0.0)
+        u_y = np.maximum(u_y, 0.0)
+
         self._solver_x.update(q=q_x, l=l_x, u=u_x)
         res_x = self._solver_x.solve()
 
@@ -212,12 +229,13 @@ class MPCController:
         res_y = self._solver_y.solve()
 
         # First corrective jerk; fallback to 0 on solver failure
-        _OSQP_INF = 1e6
-        du_x = float(res_x.x[0]) if (
-            res_x.x is not None and np.isfinite(res_x.x[0]) and abs(res_x.x[0]) < _OSQP_INF
-        ) else 0.0
-        du_y = float(res_y.x[0]) if (
-            res_y.x is not None and np.isfinite(res_y.x[0]) and abs(res_y.x[0]) < _OSQP_INF
-        ) else 0.0
+        def _extract(res: object) -> float:
+            if res.x is None:
+                return 0.0
+            v = float(res.x[0])
+            return v if np.isfinite(v) and abs(v) < 1e30 else 0.0
+
+        du_x = _extract(res_x)
+        du_y = _extract(res_y)
 
         return self._u_ff_x[k] + du_x, self._u_ff_y[k] + du_y

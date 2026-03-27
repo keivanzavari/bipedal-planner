@@ -13,7 +13,7 @@ import time
 
 from stage1.footstep import plan_footsteps
 from stage1.planners import PLANNERS, get_planner
-from stage1.world import WORLDS, World
+from stage1.world import WORLDS, SlipperyZone, World
 from stage2.contact_schedule import build_contact_schedule
 from stage2.lipm import LIPMParams
 from stage2.preview_controller import CoMTrajectory, compute_gains, run_preview_control
@@ -48,6 +48,7 @@ def run(
     planner_name: str = "astar",
     controller_name: str = "lqr",
     noise_sigma: float = 0.001,
+    slippery_zones: list[SlipperyZone] | None = None,
 ) -> None:
     planner = get_planner(planner_name, inflation_margin=INFLATION_MARGIN)
 
@@ -99,6 +100,7 @@ def run(
             footsteps=footsteps,
             foot_length=FOOT_LENGTH,
             foot_width=FOOT_WIDTH,
+            slippery_zones=slippery_zones,
         )
     else:
         controller = get_controller(controller_name)
@@ -109,6 +111,9 @@ def run(
         LIPM_PARAMS,
         controller,
         noise_sigma=noise_sigma,
+        slippery_zones=slippery_zones,
+        foot_length=FOOT_LENGTH,
+        foot_width=FOOT_WIDTH,
     )
     print(f"  Done in {(time.perf_counter() - t0) * 1000:.1f} ms")
 
@@ -131,6 +136,7 @@ def run(
         foot_width=FOOT_WIDTH,
         inflation_margin=INFLATION_MARGIN,
         com_height=LIPM_PARAMS.h,
+        slippery_zones=slippery_zones,
     )
 
 
@@ -142,7 +148,27 @@ if __name__ == "__main__":
     parser.add_argument("--planner", default="astar", choices=list(PLANNERS))
     parser.add_argument("--controller", default="lqr", choices=list(CONTROLLERS))
     parser.add_argument("--noise", type=float, default=0.001, dest="noise_sigma")
+    parser.add_argument("--slippery", action="store_true", help="Add a slippery zone across the middle third of the world")
+    parser.add_argument("--friction-scale", type=float, default=0.4, dest="friction_scale")
+    parser.add_argument("--zone", nargs=4, type=float, metavar=("X", "Y", "W", "H"),
+                        help="Custom slippery zone geometry (default: middle third of world)")
     args = parser.parse_args()
 
     world, start, goal = WORLDS[args.world]()
-    run(world, start, goal, planner_name=args.planner, controller_name=args.controller, noise_sigma=args.noise_sigma)
+
+    slippery_zones = None
+    if args.slippery:
+        if args.zone:
+            x, y, w, h = args.zone
+        else:
+            x = world.width / 3
+            y = 0.0
+            w = world.width / 3
+            h = world.height
+        slippery_zones = [SlipperyZone(x=x, y=y, w=w, h=h, friction_scale=args.friction_scale)]
+
+    run(world, start, goal,
+        planner_name=args.planner,
+        controller_name=args.controller,
+        noise_sigma=args.noise_sigma,
+        slippery_zones=slippery_zones)
