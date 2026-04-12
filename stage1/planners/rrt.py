@@ -4,6 +4,12 @@ RRT — Rapidly-exploring Random Tree path planner.
 Works directly in world coordinates without a grid. Collision checking is
 done on line segments by sampling at `world.resolution` intervals against
 the inflated occupancy grid.
+
+If you want to unserstand it better, read the paper
+"Rapidly-exploring Random Trees: Progress and Prospects" by Steven M. LaValle:
+https://msl.cs.uiuc.edu/~lavalle/papers/Lav98c.pdf
+and look at this
+https://www.doc.ic.ac.uk/~nuric/rrt-demo.html
 """
 
 import numpy as np
